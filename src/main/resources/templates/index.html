@@ -24,8 +24,8 @@
         }
 
         .sidebar {
-            width: 280px;
-            min-width: 280px;
+            width: 300px;
+            min-width: 300px;
             background: #161616;
             border-right: 1px solid #2a2a2a;
             padding: 16px;
@@ -42,17 +42,26 @@
             z-index: 1;
         }
 
+        .top-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
         .section-title {
             font-size: 14px;
             color: #bdbdbd;
             margin: 0 0 10px 0;
         }
 
-        .host-box {
+        .host-box,
+        .filter-box {
             margin-bottom: 24px;
         }
 
-        .host-input {
+        .host-input,
+        .selector {
             width: 100%;
             padding: 10px;
             border: 1px solid #333;
@@ -77,29 +86,44 @@
             background: #1d4ed8;
         }
 
-        .album-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .album-btn {
+        .btn-secondary {
             width: 100%;
-            text-align: left;
+            margin-top: 10px;
             padding: 10px;
-            border: 1px solid #2f2f2f;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
             background: #222;
             color: white;
-            border-radius: 8px;
             cursor: pointer;
         }
 
-        .album-btn:hover {
+        .btn-secondary:hover {
             background: #2c2c2c;
+        }
+
+        .icon-btn {
+            border: none;
+            background: #1f7a3d;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .icon-btn:hover {
+            background: #166534;
         }
 
         .page-title {
             font-size: 22px;
+            margin: 0 0 8px 0;
+        }
+
+        .page-subtitle {
+            font-size: 13px;
+            color: #9ca3af;
             margin: 0 0 16px 0;
         }
 
@@ -114,6 +138,12 @@
             border-radius: 12px;
             overflow: hidden;
             border: 1px solid #262626;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .video-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
         }
 
         .video-player {
@@ -138,115 +168,449 @@
             font-size: 12px;
             color: #aaa;
         }
+
+        .status {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #93c5fd;
+            min-height: 16px;
+        }
+
+        .empty-state {
+            color: #9ca3af;
+            padding: 24px 8px;
+        }
+
+        .count-box {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        .video-player {
+            width: 100%;
+            height: 160px;
+            display: block;
+            background: black;
+            object-fit: cover;
+            cursor: pointer;
+        }
+        .video-duration {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            font-size: 12px;
+            padding: 3px 6px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .favorite-icon {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            padding: 5px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .favorite-active {
+            color: red;
+        }
+        .favorite-icon:hover {
+            transform: scale(1.2);
+        }
+
     </style>
 
     <script>
-        async function loadVideos() {
-            const res = await fetch('/api/videos');
-            const videos = await res.json();
+        let currentVideos = [];
+        let currentIndex = -1;
+
+        async function fetchJson(url) {
+            const res = await fetch(url);
+            if (!res.ok) {
+                throw new Error("Erreur HTTP " + res.status);
+            }
+            return await res.json();
+        }
+
+        async function fetchText(url) {
+            const res = await fetch(url);
+            if (!res.ok) {
+                throw new Error("Erreur HTTP " + res.status);
+            }
+            return await res.text();
+        }
+
+        function getSelectedAlbum() {
+            return document.getElementById('albumSelect').value;
+        }
+
+        function getSelectedCreator() {
+            return document.getElementById('creatorSelect').value;
+        }
+
+        function getSelectedSourceIndex() {
+            return document.getElementById('sourceIndexSelect').value;
+        }
+
+        function setStatus(message) {
+            document.getElementById('status').textContent = message || '';
+        }
+        function openPlayer(encodedUrl, encodedTitle) {
+            const url = decodeURIComponent(encodedUrl);
+            const title = decodeURIComponent(encodedTitle);
+
+            document.getElementById('playerTitle').textContent = title || 'Lecture vidéo';
+            document.getElementById('mainPlayer').src = url;
+            document.getElementById('playerModal').style.display = 'flex';
+        }
+        function formatDuration(ms) {
+            if (!ms) return '';
+
+            const totalSeconds = Math.floor(ms / 1000);
+
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            if (hours > 0) {
+                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function closePlayer() {
+            const player = document.getElementById('mainPlayer');
+            player.pause();
+            player.src = '';
+            document.getElementById('playerModal').style.display = 'none';
+        }
+        function renderVideos(videos) {
+            currentVideos = videos || [];
+            currentIndex = -1;
 
             const container = document.getElementById('videos');
+            const countBox = document.getElementById('videoCount');
             container.innerHTML = '';
+            countBox.textContent = currentVideos.length + ' vidéo(s)';
 
-            videos.forEach(v => {
+            if (!currentVideos.length) {
+                container.innerHTML = '<div class="empty-state">Aucune vidéo trouvée.</div>';
+                return;
+            }
+
+            currentVideos.forEach((v, index) => {
                 const card = document.createElement('div');
                 card.className = 'video-card';
+
                 card.innerHTML = `
-                    <video class="video-player" controls preload="none">
-                        <source src="${v.url}" type="video/mp4">
-                    </video>
-                    <div class="video-info">
-                        <div class="video-title">${v.title ?? ''}</div>
-                        <div class="video-meta">${v.creator ?? ''} ${v.album ? '• ' + v.album : ''}</div>
-                    </div>
-                `;
+    <div style="position:relative;">
+        <img
+            src="/api/videos/thumbnail?id=${v.id}"
+            class="video-player"
+            loading="lazy"
+            onclick="openPlayerByIndex(${index})"
+        />
+
+        <!-- FAVORITE -->
+        <div class="favorite-icon ${v.favorite ? 'favorite-active' : ''}"
+             onclick="toggleFavorite(event, ${v.id}, this)">
+            ♥
+        </div>
+
+        <!-- durée -->
+        <div class="video-duration">
+            ${formatDuration(v.durationMs)}
+        </div>
+    </div>
+
+    <div class="video-info">
+        <div class="video-title">${v.title ?? ''}</div>
+        <div class="video-meta">
+            ${(v.creator ?? 'Unknown')}
+            ${v.album ? '• ' + v.album : ''}
+            ${v.sourceIndex != null ? '• ' + v.sourceIndex : ''}
+        </div>
+    </div>
+`;
+
                 container.appendChild(card);
             });
+        }
+        async function toggleFavorite(event, id, element) {
+            event.stopPropagation(); // 🔥 empêche ouvrir la vidéo
+
+            await fetch(`/api/videos/favorite/toggle?id=${id}`);
+
+            element.classList.toggle('favorite-active');
+        }
+        async function loadVideos() {
+            try {
+                setStatus('Chargement des vidéos...');
+                const album = getSelectedAlbum();
+                const creator = getSelectedCreator();
+                const sourceIndex = getSelectedSourceIndex();
+                const favoriteOnly = document.getElementById('favoriteFilter')?.checked;
+
+                let videos = await fetchJson('/api/videos');
+
+                if (album) {
+                    videos = videos.filter(v => (v.album || '') === album);
+                }
+
+                if (creator) {
+                    videos = videos.filter(v => (v.creator || '') === creator);
+                }
+
+                if (sourceIndex) {
+                    videos = videos.filter(v => String(v.sourceIndex) === sourceIndex);
+                }
+                if (favoriteOnly) {
+                    videos = videos.filter(v => v.favorite === true);
+                }
+                renderVideos(videos);
+                setStatus('');
+            } catch (e) {
+                setStatus('Erreur chargement vidéos');
+                console.error(e);
+            }
         }
 
         async function loadAlbums() {
-            const res = await fetch('/api/videos/albums');
-            const albums = await res.json();
+            try {
+                const albums = await fetchJson('/api/videos/albums');
+                const select = document.getElementById('albumSelect');
+                select.innerHTML = '<option value="">Tous</option>';
 
-            const container = document.getElementById('albums');
-            container.innerHTML = '';
-
-            const allBtn = document.createElement('button');
-            allBtn.className = 'album-btn';
-            allBtn.textContent = 'Tous';
-            allBtn.onclick = () => loadVideos();
-            container.appendChild(allBtn);
-
-            albums.forEach(album => {
-                const btn = document.createElement('button');
-                btn.className = 'album-btn';
-                btn.textContent = album;
-                btn.onclick = () => filterAlbum(album);
-                container.appendChild(btn);
-            });
+                albums.forEach(album => {
+                    const opt = document.createElement('option');
+                    opt.value = album;
+                    opt.textContent = album;
+                    select.appendChild(opt);
+                });
+            } catch (e) {
+                console.error(e);
+            }
         }
 
-        async function filterAlbum(album) {
-            const res = await fetch(`/api/videos/by-album?album=${encodeURIComponent(album)}`);
-            const videos = await res.json();
+        async function loadCreators() {
+            try {
+                const creators = await fetchJson('/api/videos/creators');
+                const select = document.getElementById('creatorSelect');
+                select.innerHTML = '<option value="">Tous</option>';
 
-            const container = document.getElementById('videos');
-            container.innerHTML = '';
-
-            videos.forEach(v => {
-                const card = document.createElement('div');
-                card.className = 'video-card';
-                card.innerHTML = `
-                    <video class="video-player" controls preload="none">
-                        <source src="${v.url}" type="video/mp4">
-                    </video>
-                    <div class="video-info">
-                        <div class="video-title">${v.title ?? ''}</div>
-                        <div class="video-meta">${v.creator ?? ''} ${v.album ? '• ' + v.album : ''}</div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+                creators.forEach(creator => {
+                    const opt = document.createElement('option');
+                    opt.value = creator;
+                    opt.textContent = creator;
+                    select.appendChild(opt);
+                });
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         async function loadHost() {
-            const res = await fetch('/api/config/host');
-            const host = await res.text();
-            document.getElementById('hostInput').value = host;
+            try {
+                const host = await fetchText('/api/config/host');
+                document.getElementById('hostInput').value = host;
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         async function updateHost() {
-            const host = document.getElementById('hostInput').value;
-            await fetch(`/api/config/host/set?host=${encodeURIComponent(host)}`);
+            try {
+                const host = document.getElementById('hostInput').value.trim();
+                if (!host) return;
+
+                setStatus('Mise à jour du host...');
+                await fetch(`/api/config/host/set?host=${encodeURIComponent(host)}`);
+                await loadVideos();
+                setStatus('Host mis à jour');
+            } catch (e) {
+                setStatus('Erreur mise à jour host');
+                console.error(e);
+            }
+        }
+
+        async function saveDb() {
+            try {
+                setStatus('Sauvegarde de la base...');
+                await fetch('/api/db/save');
+                setStatus('Base sauvegardée ✔');
+            } catch (e) {
+                setStatus('Erreur sauvegarde DB');
+                console.error(e);
+            }
+        }
+
+        async function resetFilters() {
+            document.getElementById('albumSelect').value = '';
+            document.getElementById('creatorSelect').value = '';
+            document.getElementById('sourceIndexSelect').value = '';
             await loadVideos();
         }
 
+        async function onFilterChange() {
+            await loadVideos();
+        }
+        function openPlayerByIndex(index) {
+            if (!currentVideos || index < 0 || index >= currentVideos.length) return;
+
+            currentIndex = index;
+            const video = currentVideos[index];
+
+            document.getElementById('playerTitle').textContent = video.title || 'Lecture vidéo';
+            document.getElementById('mainPlayer').src = video.url || '';
+            document.getElementById('playerModal').style.display = 'flex';
+
+            updatePlayerNavButtons();
+        }
+
+        function closePlayer() {
+            const player = document.getElementById('mainPlayer');
+            player.pause();
+            player.src = '';
+            document.getElementById('playerModal').style.display = 'none';
+            currentIndex = -1;
+        }
+
+        function playNext() {
+            if (!currentVideos || currentVideos.length === 0) return;
+            const nextIndex = (currentIndex + 1) % currentVideos.length;
+            openPlayerByIndex(nextIndex);
+        }
+        function initPlayerEvents() {
+            const player = document.getElementById('mainPlayer');
+
+            player.addEventListener('ended', () => {
+                if (currentIndex < currentVideos.length - 1) {
+                    playNext();
+                }
+            });
+        }
+        function playPrevious() {
+            if (!currentVideos || currentVideos.length === 0) return;
+            const prevIndex = (currentIndex - 1 + currentVideos.length) % currentVideos.length;
+            openPlayerByIndex(prevIndex);
+        }
+
+        function updatePlayerNavButtons() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            prevBtn.disabled = currentIndex <= 0;
+            nextBtn.disabled = currentIndex >= currentVideos.length - 1;
+        }
+
         window.addEventListener('load', async () => {
+            initPlayerEvents();
             await loadHost();
             await loadAlbums();
+            await loadCreators();
             await loadVideos();
+        });
+        document.addEventListener('keydown', (e) => {
+            const modalVisible = document.getElementById('playerModal').style.display === 'flex';
+            if (!modalVisible) return;
+
+            if (e.key === 'ArrowRight') {
+                playNext();
+            } else if (e.key === 'ArrowLeft') {
+                playPrevious();
+            } else if (e.key === 'Escape') {
+                closePlayer();
+            }
         });
     </script>
 </head>
 <body>
 <div class="app">
     <aside class="sidebar">
-        <div class="host-box">
-            <p class="section-title">Host</p>
-            <input id="hostInput" class="host-input" type="text">
-            <button class="btn" onclick="updateHost()">Modifier host</button>
+        <div class="top-row">
+            <button class="icon-btn" onclick="saveDb()" title="Sauvegarder la base">💾</button>
         </div>
 
-        <div>
-            <p class="section-title">Albums</p>
-            <div id="albums" class="album-list"></div>
+        <div class="host-box">
+            <p class="section-title">Host</p>
+            <input id="hostInput" class="host-input" type="text" placeholder="192.168.1.44">
+            <button class="btn" onclick="updateHost()">Modifier host</button>
         </div>
+        <div class="filter-box">
+            <p class="section-title" style="margin:0;">Filters</p>
+            <p class="section-title">Creator</p>
+            <select id="creatorSelect" class="selector" onchange="onFilterChange()">
+                <option value="">Tous</option>
+            </select>
+        </div>
+        <div class="filter-box">
+            <p class="section-title">Level</p>
+            <select id="sourceIndexSelect" class="selector" onchange="onFilterChange()">
+                <option value="">Tous</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+            </select>
+        </div>
+
+        <div class="filter-box">
+            <p class="section-title">Album</p>
+            <select id="albumSelect" class="selector" onchange="onFilterChange()">
+                <option value="">Tous</option>
+            </select>
+        </div>
+        <div class="filter-box">
+            <label>
+                <input type="checkbox" id="favoriteFilter" onchange="onFilterChange()">
+                Favoris
+            </label>
+        </div>
+        <div class="filter-box">
+            <button class="btn-secondary" onclick="resetFilters()">Réinitialiser les filtres</button>
+        </div>
+
+        <div id="status" class="status"></div>
     </aside>
 
     <main class="content">
         <h1 class="page-title">Bibliothèque vidéo</h1>
+        <p class="page-subtitle">Affichage en mosaïque avec filtres album et creator.</p>
+        <div id="videoCount" class="count-box"></div>
         <div id="videos" class="video-grid"></div>
     </main>
+</div>
+<div id="playerModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center;">
+    <div style="width:80%; max-width:1000px; background:#111; border-radius:12px; overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#1b1b1b;">
+            <div id="playerTitle" style="font-weight:bold;">Lecture vidéo</div>
+
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button id="prevBtn"
+                        onclick="playPrevious()"
+                        style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                    ⏮
+                </button>
+
+                <button id="nextBtn"
+                        onclick="playNext()"
+                        style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                    ⏭
+                </button>
+
+                <button onclick="closePlayer()"
+                        style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                    Fermer
+                </button>
+            </div>
+        </div>
+
+        <video id="mainPlayer" controls autoplay style="width:100%; max-height:75vh; background:black;"></video>
+    </div>
 </div>
 </body>
 </html>

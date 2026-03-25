@@ -6,14 +6,25 @@ import com.local.ar44.dto.Video;
 import com.local.ar44.dto.VideoResponse;
 import com.local.ar44.repo.AppConfigRepository;
 import com.local.ar44.repo.VideoRepository;
+import com.local.ar44.service.ThumbnailStorageService;
 import jakarta.servlet.http.HttpSession;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @RestController
@@ -23,10 +34,14 @@ public class VideoController {
     private final VideoRepository videoRepository;
     private final AppConfigRepository appConfigRepository;
 
+    private final ThumbnailStorageService thumbnailStorageService;
+
     public VideoController(VideoRepository videoRepository,
-                           AppConfigRepository appConfigRepository) {
+                           AppConfigRepository appConfigRepository,
+                           ThumbnailStorageService thumbnailStorageService) {
         this.videoRepository = videoRepository;
         this.appConfigRepository = appConfigRepository;
+        this.thumbnailStorageService = thumbnailStorageService;
     }
 
     // ========================
@@ -189,5 +204,50 @@ public class VideoController {
     public String deleteVideo(@RequestParam Long id) {
         videoRepository.deleteById(id);
         return "Video supprimée : " + id;
+    }
+
+
+
+
+    @GetMapping("/thumbnail")
+    public ResponseEntity<Resource> getThumbnail(@RequestParam Long id) {
+        try {
+            Path thumbPath = thumbnailStorageService.getThumbPath(id);
+
+            if (!Files.exists(thumbPath) || Files.size(thumbPath) == 0) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Resource resource = new FileSystemResource(thumbPath.toFile());
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.IMAGE_JPEG)
+                    .cacheControl(CacheControl.maxAge(5, TimeUnit.HOURS).cachePublic())
+                    .body(resource);
+
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/favorite/toggle")
+    public String toggleFavorite(@RequestParam Long id) {
+        Video v = videoRepository.findById(id).orElseThrow();
+
+        v.setFavorite(v.getFavorite() == null || !v.getFavorite());
+
+        videoRepository.save(v);
+
+        return "OK";
+    }
+
+    @GetMapping("/favorites")
+    public List<VideoResponse> getFavorites(HttpSession session) {
+        String host = resolveHost(session);
+
+        return videoRepository.findByFavoriteTrue()
+                .stream()
+                .map(v -> toResponse(v, host))
+                .toList();
     }
 }

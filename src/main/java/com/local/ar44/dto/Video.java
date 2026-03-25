@@ -23,6 +23,6 @@ public class Video {
     private String album;
     private Integer sourceIndex; // vlc:id
     private String thumbnailUrl;
-
     private LocalDateTime createdAt;
+    private Boolean favorite = false;
 }
