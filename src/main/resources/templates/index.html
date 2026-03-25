@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Video Library</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0b0b0b;
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+
+        .sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: #161616;
+            border-right: 1px solid #2a2a2a;
+            padding: 16px;
+            overflow-y: auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .content {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .section-title {
+            font-size: 14px;
+            color: #bdbdbd;
+            margin: 0 0 10px 0;
+        }
+
+        .host-box {
+            margin-bottom: 24px;
+        }
+
+        .host-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #333;
+            background: #222;
+            color: white;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .btn {
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #1d4ed8;
+        }
+
+        .album-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .album-btn {
+            width: 100%;
+            text-align: left;
+            padding: 10px;
+            border: 1px solid #2f2f2f;
+            background: #222;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .album-btn:hover {
+            background: #2c2c2c;
+        }
+
+        .page-title {
+            font-size: 22px;
+            margin: 0 0 16px 0;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .video-card {
+            background: #181818;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #262626;
+        }
+
+        .video-player {
+            width: 100%;
+            height: 160px;
+            display: block;
+            background: black;
+        }
+
+        .video-info {
+            padding: 10px;
+        }
+
+        .video-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 6px;
+            word-break: break-word;
+        }
+
+        .video-meta {
+            font-size: 12px;
+            color: #aaa;
+        }
+    </style>
+
+    <script>
+        async function loadVideos() {
+            const res = await fetch('/api/videos');
+            const videos = await res.json();
+
+            const container = document.getElementById('videos');
+            container.innerHTML = '';
+
+            videos.forEach(v => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.innerHTML = `
+                    <video class="video-player" controls preload="none">
+                        <source src="${v.url}" type="video/mp4">
+                    </video>
+                    <div class="video-info">
+                        <div class="video-title">${v.title ?? ''}</div>
+                        <div class="video-meta">${v.creator ?? ''} ${v.album ? '• ' + v.album : ''}</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function loadAlbums() {
+            const res = await fetch('/api/videos/albums');
+            const albums = await res.json();
+
+            const container = document.getElementById('albums');
+            container.innerHTML = '';
+
+            const allBtn = document.createElement('button');
+            allBtn.className = 'album-btn';
+            allBtn.textContent = 'Tous';
+            allBtn.onclick = () => loadVideos();
+            container.appendChild(allBtn);
+
+            albums.forEach(album => {
+                const btn = document.createElement('button');
+                btn.className = 'album-btn';
+                btn.textContent = album;
+                btn.onclick = () => filterAlbum(album);
+                container.appendChild(btn);
+            });
+        }
+
+        async function filterAlbum(album) {
+            const res = await fetch(`/api/videos/by-album?album=${encodeURIComponent(album)}`);
+            const videos = await res.json();
+
+            const container = document.getElementById('videos');
+            container.innerHTML = '';
+
+            videos.forEach(v => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.innerHTML = `
+                    <video class="video-player" controls preload="none">
+                        <source src="${v.url}" type="video/mp4">
+                    </video>
+                    <div class="video-info">
+                        <div class="video-title">${v.title ?? ''}</div>
+                        <div class="video-meta">${v.creator ?? ''} ${v.album ? '• ' + v.album : ''}</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function loadHost() {
+            const res = await fetch('/api/config/host');
+            const host = await res.text();
+            document.getElementById('hostInput').value = host;
+        }
+
+        async function updateHost() {
+            const host = document.getElementById('hostInput').value;
+            await fetch(`/api/config/host/set?host=${encodeURIComponent(host)}`);
+            await loadVideos();
+        }
+
+        window.addEventListener('load', async () => {
+            await loadHost();
+            await loadAlbums();
+            await loadVideos();
+        });
+    </script>
+</head>
+<body>
+<div class="app">
+    <aside class="sidebar">
+        <div class="host-box">
+            <p class="section-title">Host</p>
+            <input id="hostInput" class="host-input" type="text">
+            <button class="btn" onclick="updateHost()">Modifier host</button>
+        </div>
+
+        <div>
+            <p class="section-title">Albums</p>
+            <div id="albums" class="album-list"></div>
+        </div>
+    </aside>
+
+    <main class="content">
+        <h1 class="page-title">Bibliothèque vidéo</h1>
+        <div id="videos" class="video-grid"></div>
+    </main>
+</div>
+</body>
+</html>
