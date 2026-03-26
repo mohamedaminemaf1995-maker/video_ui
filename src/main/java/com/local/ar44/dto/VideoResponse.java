@@ -12,6 +12,7 @@ public class VideoResponse {
     private String creator;
     private String album;
     private Integer sourceIndex;
+    private Boolean favorite;
 
     // getters/setters
 }

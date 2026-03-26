@@ -42,7 +42,6 @@ public class DbLoader implements CommandLineRunner {
                     ok++;
                 } catch (Exception e) {
                     ko++;
-                    System.out.println("Thumbnail KO pour video id=" + video.getId() + " : " + e.getMessage());
                 }
             }
 

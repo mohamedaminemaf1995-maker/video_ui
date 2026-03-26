@@ -81,6 +81,7 @@ public class VideoController {
         response.setDurationMs(video.getDurationMs());
         response.setCreator(video.getCreator());
         response.setAlbum(video.getAlbum());
+        response.setFavorite(video.getFavorite());
         response.setSourceIndex(video.getSourceIndex());
         response.setUrl(buildUrl(host, fileName));
 
@@ -204,6 +205,41 @@ public class VideoController {
     public String deleteVideo(@RequestParam Long id) {
         videoRepository.deleteById(id);
         return "Video supprimée : " + id;
+    }
+
+    @GetMapping("/album/set")
+    public String setAlbum(@RequestParam Long id, @RequestParam String album) {
+        Video v = videoRepository.findById(id).orElseThrow();
+        v.setAlbum(album);
+        videoRepository.save(v);
+        return "Album mis à jour";
+    }
+    @GetMapping("/source-index/increase")
+    public String increaseSourceIndex(@RequestParam Long id) {
+        Video v = videoRepository.findById(id).orElseThrow();
+
+        Integer current = v.getSourceIndex();
+        if (current == null) current = 0;
+        if(current < 5) {
+            v.setSourceIndex(current + 1);
+            videoRepository.save(v);
+        }
+        return "SourceIndex augmenté";
+    }
+    @GetMapping("/source-index/decrease")
+    public String decreaseSourceIndex(@RequestParam Long id) {
+        Video v = videoRepository.findById(id).orElseThrow();
+
+        Integer current = v.getSourceIndex();
+        if (current == null) current = 0;
+
+        if (current > 0) {
+            v.setSourceIndex(current - 1);
+        }
+
+        videoRepository.save(v);
+
+        return "SourceIndex diminué";
     }
 
 
