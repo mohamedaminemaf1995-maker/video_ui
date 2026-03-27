@@ -1,9 +1,11 @@
 package com.local.ar44.controller;
 
+import com.local.ar44.dto.Album;
 import com.local.ar44.dto.AlbumStats;
 import com.local.ar44.dto.AppConfig;
 import com.local.ar44.dto.Video;
 import com.local.ar44.dto.VideoResponse;
+import com.local.ar44.repo.AlbumRepository;
 import com.local.ar44.repo.AppConfigRepository;
 import com.local.ar44.repo.VideoRepository;
 import com.local.ar44.service.ThumbnailStorageService;
@@ -30,14 +32,16 @@ public class VideoController {
 
     private final VideoRepository videoRepository;
     private final AppConfigRepository appConfigRepository;
-
+    private final AlbumRepository albumRepository;
     private final ThumbnailStorageService thumbnailStorageService;
 
     public VideoController(VideoRepository videoRepository,
                            AppConfigRepository appConfigRepository,
+                           AlbumRepository albumRepository,
                            ThumbnailStorageService thumbnailStorageService) {
         this.videoRepository = videoRepository;
         this.appConfigRepository = appConfigRepository;
+        this.albumRepository = albumRepository;
         this.thumbnailStorageService = thumbnailStorageService;
     }
 
@@ -77,12 +81,30 @@ public class VideoController {
         response.setFileName(fileName);
         response.setDurationMs(video.getDurationMs());
         response.setCreator(video.getCreator());
-        response.setAlbum(video.getAlbum());
+        response.setAlbums(video.getAlbums().stream()
+                .map(Album::getName)
+                .sorted()
+                .toList());
         response.setFavorite(video.getFavorite());
         response.setSourceIndex(video.getSourceIndex());
         response.setUrl(buildUrl(host, fileName));
 
         return response;
+    }
+
+    private void assignAlbumsToVideo(Video video, String albumString) {
+        video.getAlbums().clear();
+        if (albumString != null && !albumString.isBlank()) {
+            String[] albumNames = albumString.split(",");
+            for (String albumName : albumNames) {
+                String trimmed = albumName.trim();
+                if (!trimmed.isBlank()) {
+                    Album a = albumRepository.findByName(trimmed)
+                            .orElseGet(() -> albumRepository.save(new Album(trimmed)));
+                    video.getAlbums().add(a);
+                }
+            }
+        }
     }
 
     // ========================
@@ -114,7 +136,7 @@ public class VideoController {
     @GetMapping("/by-album")
     public List<VideoResponse> getByAlbum(@RequestParam String album, HttpSession session) {
         String host = resolveHost(session);
-        return videoRepository.findByAlbumIgnoreCase(album)
+        return albumRepository.findVideosByAlbumName(album)
                 .stream()
                 .map(v -> toResponse(v, host))
                 .toList();
@@ -135,19 +157,30 @@ public class VideoController {
 
     @GetMapping("/creators")
     public List<String> getCreators() {
-        return videoRepository.findDistinctCreators();
+        List<String> creators = videoRepository.findDistinctCreators()
+                .stream()
+                .filter(c -> c != null && !c.isBlank())
+                .toList();
+
+        // Si aucun créateur enregistré, proposer un élément de retour pour filtrer les inconnus
+        if (creators.isEmpty()) {
+            return List.of("Unknown");
+        }
+
+        return creators;
     }
 
     @GetMapping("/albums")
     public List<String> getAlbums() {
-        return videoRepository.findDistinctAlbums();
+        return albumRepository.findDistinctAlbumNames();
     }
 
     // 🔥 NOUVEAU : albums + count
     @GetMapping("/albums/stats")
     public List<AlbumStats> getAlbumsStats() {
         return videoRepository.findAll().stream()
-                .collect(Collectors.groupingBy(Video::getAlbum, Collectors.counting()))
+                .flatMap(v -> v.getAlbums().stream())
+                .collect(Collectors.groupingBy(Album::getName, Collectors.counting()))
                 .entrySet()
                 .stream()
                 .map(e -> new AlbumStats(e.getKey(), e.getValue()))
@@ -170,7 +203,7 @@ public class VideoController {
         v.setFileName(fileName);
         v.setTitle(title != null ? title : fileName);
         v.setCreator(creator);
-        v.setAlbum(album);
+        assignAlbumsToVideo(v, album);
         v.setDurationMs(duration);
 
         return videoRepository.save(v);
@@ -190,7 +223,7 @@ public class VideoController {
 
         if (title != null) v.setTitle(title);
         if (creator != null) v.setCreator(creator);
-        if (album != null) v.setAlbum(album);
+        if (album != null) assignAlbumsToVideo(v, album);
 
         return videoRepository.save(v);
     }
@@ -207,9 +240,9 @@ public class VideoController {
     @GetMapping("/album/set")
     public String setAlbum(@RequestParam Long id, @RequestParam String album) {
         Video v = videoRepository.findById(id).orElseThrow();
-        v.setAlbum(album);
+        assignAlbumsToVideo(v, album);
         videoRepository.save(v);
-        return "Album mis à jour";
+        return "Album(s) mis à jour";
     }
     @GetMapping("/source-index/increase")
     public String increaseSourceIndex(@RequestParam Long id) {

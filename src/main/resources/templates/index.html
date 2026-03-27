@@ -2,18 +2,32 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Video Library</title>
+    <title>Arcad - Video Library</title>
     <style>
         * {
             box-sizing: border-box;
         }
 
+        :root {
+            --bg: #05070a;
+            --panel: #0f172a;
+            --panel-2: #111827;
+            --border: #1e40af;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --blue: #3b82f6;
+            --blue-hover: #2563eb;
+            --accent: #0ea5e9;
+            --danger: #ef4444;
+        }
+
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: #0b0b0b;
-            color: white;
-            height: 100vh;
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            background: radial-gradient(circle at 20% 10%, rgba(14,165,233,0.06), transparent 45%),
+                        linear-gradient(180deg, #04050a 0%, #050912 100%);
+            color: var(--text);
+            min-height: 100vh;
             overflow: hidden;
         }
 
@@ -24,11 +38,11 @@
         }
 
         .sidebar {
-            width: 300px;
-            min-width: 300px;
-            background: #161616;
-            border-right: 1px solid #2a2a2a;
-            padding: 16px;
+            width: 280px;
+            min-width: 280px;
+            background: linear-gradient(180deg, #0c1121, #0f172a);
+            border-right: 1px solid rgba(56, 189, 248, 0.25);
+            padding: 18px;
             overflow-y: auto;
             position: relative;
             z-index: 2;
@@ -36,7 +50,7 @@
 
         .content {
             flex: 1;
-            padding: 16px;
+            padding: 18px;
             overflow-y: auto;
             position: relative;
             z-index: 1;
@@ -50,123 +64,151 @@
         }
 
         .section-title {
-            font-size: 14px;
-            color: #bdbdbd;
-            margin: 0 0 10px 0;
+            font-size: 13px;
+            color: var(--muted);
+            margin: 0 0 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .host-box,
         .filter-box {
-            margin-bottom: 24px;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            border-radius: 12px;
         }
 
         .host-input,
         .selector {
             width: 100%;
             padding: 10px;
-            border: 1px solid #333;
-            background: #222;
-            color: white;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(15, 23, 42, 0.7);
+            color: var(--text);
             border-radius: 8px;
             outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .host-input:focus,
+        .selector:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+        }
+
+        .btn,
+        .btn-secondary,
+        .icon-btn {
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
         }
 
         .btn {
-            width: 100%;
-            margin-top: 10px;
-            padding: 10px;
-            border: none;
-            border-radius: 8px;
-            background: #2563eb;
+            background: linear-gradient(135deg, var(--blue), var(--accent));
             color: white;
-            cursor: pointer;
+            box-shadow: 0 8px 18px rgba(59, 130, 246, 0.28);
         }
 
         .btn:hover {
-            background: #1d4ed8;
+            transform: translateY(-1px);
+            filter: brightness(1.05);
+            background: linear-gradient(135deg, #2563eb, #38bdf8);
         }
 
         .btn-secondary {
-            width: 100%;
-            margin-top: 10px;
-            padding: 10px;
-            border: 1px solid #3a3a3a;
-            border-radius: 8px;
-            background: #222;
-            color: white;
-            cursor: pointer;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            color: var(--text);
         }
 
         .btn-secondary:hover {
-            background: #2c2c2c;
+            background: rgba(15, 23, 42, 0.95);
         }
 
         .icon-btn {
-            border: none;
-            background: #1f7a3d;
+            background: var(--blue);
             color: white;
             width: 36px;
             height: 36px;
             border-radius: 8px;
-            cursor: pointer;
             font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 14px rgba(59, 130, 246, 0.24);
         }
 
         .icon-btn:hover {
-            background: #166534;
+            background: var(--blue-hover);
+            transform: translateY(-1px);
         }
 
         .page-title {
-            font-size: 22px;
+            font-size: 28px;
             margin: 0 0 8px 0;
+            color: #dbeafe;
         }
 
         .page-subtitle {
-            font-size: 13px;
-            color: #9ca3af;
+            font-size: 14px;
+            color: #94a3b8;
             margin: 0 0 16px 0;
         }
 
         .video-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
             gap: 16px;
         }
 
         .video-card {
-            background: #181818;
-            border-radius: 12px;
+            background: linear-gradient(145deg, #0b1225, #0f172a);
+            border-radius: 14px;
             overflow: hidden;
-            border: 1px solid #262626;
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
         }
 
         .video-card:hover {
-            transform: scale(1.02);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+            transform: translateY(-3px) scale(1.01);
+            box-shadow: 0 15px 30px rgba(29, 78, 216, 0.38);
+            border-color: rgba(59, 130, 246, 0.7);
         }
 
         .video-player {
             width: 100%;
-            height: 160px;
+            height: 170px;
             display: block;
-            background: black;
+            background: #000;
+            object-fit: cover;
+            cursor: pointer;
         }
 
         .video-info {
-            padding: 10px;
+            padding: 12px;
         }
 
         .video-title {
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 6px;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 8px;
             word-break: break-word;
+            color: #e0f2fe;
         }
 
         .video-meta {
             font-size: 12px;
-            color: #aaa;
+            color: #a5b4fc;
         }
 
         .status {
@@ -177,62 +219,52 @@
         }
 
         .empty-state {
-            color: #9ca3af;
+            color: #94a3b8;
             padding: 24px 8px;
         }
 
         .count-box {
             margin-top: 6px;
             font-size: 12px;
-            color: #9ca3af;
+            color: #94a3b8;
         }
-        .video-player {
-            width: 100%;
-            height: 160px;
-            display: block;
-            background: black;
-            object-fit: cover;
-            cursor: pointer;
-        }
+
         .video-duration {
             position: absolute;
             bottom: 6px;
             right: 6px;
-            background: rgba(0, 0, 0, 0.75);
+            background: rgba(15, 23, 42, 0.95);
             color: white;
             font-size: 12px;
             padding: 3px 6px;
-            border-radius: 6px;
+            border-radius: 8px;
             font-weight: 600;
         }
+
         .favorite-icon {
             position: absolute;
             top: 8px;
             left: 8px;
-
             width: 34px;
             height: 34px;
-
             display: flex;
             align-items: center;
             justify-content: center;
-
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 8px; /* carré arrondi */
-
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 10px;
             font-size: 18px;
             cursor: pointer;
-
             transition: all 0.2s ease;
+            color: #e5e7eb;
         }
 
         .favorite-icon:hover {
-            transform: scale(1.15);
-            background: rgba(0, 0, 0, 0.85);
+            transform: scale(1.14);
+            background: rgba(14, 165, 233, 0.6);
         }
 
         .favorite-active {
-            color: red;
+            color: #f43f5e;
         }
 
     </style>
@@ -258,7 +290,9 @@
         }
 
         function getSelectedAlbum() {
-            return document.getElementById('albumSelect').value;
+            return Array.from(document.getElementById('albumSelect').selectedOptions)
+                .map(opt => opt.value)
+                .filter(val => val && val.trim() !== '');
         }
 
         function getSelectedCreator() {
@@ -345,7 +379,7 @@
         <div class="video-title">${v.title ?? ''}</div>
         <div class="video-meta">
             ${(v.creator ?? 'Unknown')}
-            ${v.album ? '• ' + v.album : ''}
+            ${Array.isArray(v.albums) && v.albums.length > 0 ? '• ' + v.albums.join(', ') : ''}
             ${v.sourceIndex != null ? '• ' + v.sourceIndex : ''}
         </div>
     </div>
@@ -371,12 +405,19 @@
 
                 let videos = await fetchJson('/api/videos');
 
-                if (album) {
-                    videos = videos.filter(v => (v.album || '') === album);
+                if (album.length > 0) {
+                    videos = videos.filter(v => {
+                        const videoAlbums = Array.isArray(v.albums) ? v.albums : [];
+                        return videoAlbums.some(va => album.includes(va));
+                    });
                 }
 
                 if (creator) {
-                    videos = videos.filter(v => (v.creator || '') === creator);
+                    if (creator === 'Unknown') {
+                        videos = videos.filter(v => !v.creator || v.creator.trim() === '');
+                    } else {
+                        videos = videos.filter(v => (v.creator || '') === creator);
+                    }
                 }
 
                 if (sourceIndex) {
@@ -396,14 +437,15 @@
         async function loadAlbums() {
             try {
                 const albums = await fetchJson('/api/videos/albums');
-                const select = document.getElementById('albumSelect');
-                select.innerHTML = '<option value="">Tous</option>';
+                const filterSelect = document.getElementById('albumSelect');
+
+                filterSelect.innerHTML = '<option value="">Tous</option>';
 
                 albums.forEach(album => {
-                    const opt = document.createElement('option');
-                    opt.value = album;
-                    opt.textContent = album;
-                    select.appendChild(opt);
+                    const opt1 = document.createElement('option');
+                    opt1.value = album;
+                    opt1.textContent = album;
+                    filterSelect.appendChild(opt1);
                 });
             } catch (e) {
                 console.error(e);
@@ -413,14 +455,23 @@
         async function loadCreators() {
             try {
                 const creators = await fetchJson('/api/videos/creators');
+
                 const select = document.getElementById('creatorSelect');
+                const newCreator = document.getElementById('newCreator');
+
                 select.innerHTML = '<option value="">Tous</option>';
+                newCreator.innerHTML = '<option value="">Sélectionner creator</option>';
 
                 creators.forEach(creator => {
-                    const opt = document.createElement('option');
-                    opt.value = creator;
-                    opt.textContent = creator;
-                    select.appendChild(opt);
+                    const opt1 = document.createElement('option');
+                    opt1.value = creator;
+                    opt1.textContent = creator;
+                    select.appendChild(opt1);
+
+                    const opt2 = document.createElement('option');
+                    opt2.value = creator;
+                    opt2.textContent = creator;
+                    newCreator.appendChild(opt2);
                 });
             } catch (e) {
                 console.error(e);
@@ -463,31 +514,47 @@
         }
 
         async function resetFilters() {
-            document.getElementById('albumSelect').value = '';
+            const albumSelect = document.getElementById('albumSelect');
+            Array.from(albumSelect.options).forEach(opt => opt.selected = false);
             document.getElementById('creatorSelect').value = '';
             document.getElementById('sourceIndexSelect').value = '';
             await loadVideos();
         }
 
+        async function createVideo() {
+            const fileName = document.getElementById('newFileName').value.trim();
+            const title = document.getElementById('newTitle').value.trim();
+            const creator = document.getElementById('newCreator').value;
+
+            if (!fileName) {
+                setStatus('Le nom de fichier est requis.');
+                return;
+            }
+
+            const params = new URLSearchParams();
+            params.set('fileName', fileName);
+            if (title) params.set('title', title);
+            if (creator) params.set('creator', creator);
+
+            setStatus('Ajout de la vidéo...');
+            try {
+                await fetch(`/api/videos/create?${params.toString()}`);
+                setStatus('Vidéo ajoutée.');
+                document.getElementById('newFileName').value = '';
+                document.getElementById('newTitle').value = '';
+                document.getElementById('newCreator').value = '';
+                await loadCreators();
+                await loadVideos();
+            } catch (e) {
+                setStatus('Erreur ajout vidéo');
+                console.error(e);
+            }
+        }
+
         async function onFilterChange() {
             await loadVideos();
         }
-        function openPlayerByIndex(index) {
-            if (!currentVideos || index < 0 || index >= currentVideos.length) return;
-
-            currentIndex = index;
-            const video = currentVideos[index];
-
-            document.getElementById('playerTitle').textContent = video.title || 'Lecture vidéo';
-            document.getElementById('mainPlayer').src = video.url || '';
-            document.getElementById('playerModal').style.display = 'flex';
-
-            document.getElementById('albumEditInput').value = video.album || '';
-            document.getElementById('levelValue').textContent = video.sourceIndex ?? 0;
-
-            updatePlayerNavButtons();
-        }
-        let deleteCandidateId = null;
+        // openPlayerByIndex is implemented later; this placeholder is intentionally kept for ordering when script is parsed.        let deleteCandidateId = null;
 
         function closePlayer() {
             const player = document.getElementById('mainPlayer');
@@ -541,6 +608,24 @@
                     playNext();
                 }
             });
+
+            player.addEventListener('play', () => {
+                document.getElementById('playPauseBtn').textContent = 'Pause';
+            });
+
+            player.addEventListener('pause', () => {
+                document.getElementById('playPauseBtn').textContent = 'Play';
+            });
+        }
+
+        function playOrPause() {
+            const player = document.getElementById('mainPlayer');
+            if (!player) return;
+            if (player.paused || player.ended) {
+                player.play();
+            } else {
+                player.pause();
+            }
         }
         function playPrevious() {
             if (!currentVideos || currentVideos.length === 0) return;
@@ -567,14 +652,27 @@
             const modalVisible = document.getElementById('playerModal').style.display === 'flex';
             if (!modalVisible) return;
 
-            if (e.key === 'ArrowRight') {
+            if (e.key === 'PageDown') {
                 playNext();
-            } else if (e.key === 'ArrowLeft') {
+            } else if (e.key === 'PageUp') {
                 playPrevious();
+            } else if (e.key === 'ArrowRight') {
+                seekBy(10);
+            } else if (e.key === 'ArrowLeft') {
+                seekBy(-10);
             } else if (e.key === 'Escape') {
                 closePlayer();
             }
         });
+
+        function seekBy(seconds) {
+            const player = document.getElementById('mainPlayer');
+            if (!player || isNaN(player.currentTime)) return;
+            const target = Math.max(0, Math.min(player.duration || Infinity, player.currentTime + seconds));
+            player.currentTime = target;
+            setStatus(`Position vidéo : ${Math.round(target)}s`);
+        }
+
         function openPlayerByIndex(index) {
             if (!currentVideos || index < 0 || index >= currentVideos.length) return;
 
@@ -582,10 +680,42 @@
             const video = currentVideos[index];
 
             document.getElementById('playerTitle').textContent = video.title || 'Lecture vidéo';
+            document.getElementById('playerSubtitle').textContent = `Créateur: ${video.creator || 'Unknown'} • Level: ${video.sourceIndex ?? 'N/A'} • Albums: ${Array.isArray(video.albums) && video.albums.length > 0 ? video.albums.join(', ') : 'Aucun'}`;
+            document.getElementById('playerDuration').textContent = `${formatDuration(video.durationMs)} / ${formatDuration(video.durationMs || 0)}`;
+            document.getElementById('playerFavoriteState').textContent = video.favorite ? 'Oui' : 'Non';
+
             document.getElementById('mainPlayer').src = video.url || '';
             document.getElementById('playerModal').style.display = 'flex';
 
-            document.getElementById('albumEditInput').value = video.album || '';
+            // Build album checkboxes
+            const videoAlbums = Array.isArray(video.albums) ? video.albums : [];
+            const container = document.getElementById('albumCheckboxesContainer');
+            container.innerHTML = '';
+
+            const albumSelect = document.getElementById('albumSelect');
+            Array.from(albumSelect.options).forEach(opt => {
+                if (!opt.value) return; // skip "Tous"
+                const label = document.createElement('label');
+                label.style.display = 'flex';
+                label.style.alignItems = 'center';
+                label.style.gap = '6px';
+                label.style.cursor = 'pointer';
+                label.style.color = '#fff';
+                label.style.fontSize = '14px';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = opt.value;
+                checkbox.checked = videoAlbums.includes(opt.value);
+                checkbox.style.cursor = 'pointer';
+                checkbox.style.width = '16px';
+                checkbox.style.height = '16px';
+
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(opt.value));
+                container.appendChild(label);
+            });
+
             const level = (video.sourceIndex != null && video.sourceIndex >= 1 && video.sourceIndex <= 5) ? video.sourceIndex : 1;
             document.getElementById('levelSelect').value = level;
             document.getElementById('levelValue').textContent = video.sourceIndex ?? 0;
@@ -612,11 +742,21 @@
             if (currentIndex < 0 || !currentVideos[currentIndex]) return;
 
             const video = currentVideos[currentIndex];
-            const newAlbum = document.getElementById('albumEditInput').value.trim();
+            const container = document.getElementById('albumCheckboxesContainer');
+            const selectedAlbums = Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(cb => cb.value.trim())
+                .filter(Boolean);
+
+            if (selectedAlbums.length === 0) {
+                // If no albums selected, we can set empty or send notification
+                return;
+            }
+
+            const newAlbum = selectedAlbums.join(', ');
 
             await fetch(`/api/videos/album/set?id=${video.id}&album=${encodeURIComponent(newAlbum)}`);
 
-            video.album = newAlbum;
+            video.albums = selectedAlbums;
 
             await loadVideos();
             openPlayerByIndex(currentIndex);
@@ -660,11 +800,16 @@
 <body>
 <div class="app">
     <div class="sidebar">
-        <div style="display:flex; gap:8px; align-items:center; justify-content:space-between; margin-bottom:12px;">
-            <h2 style="margin:0;">Bibliothèque</h2>
+        <div style="display:flex; gap:8px; align-items:center; justify-content:space-between; margin-bottom:14px;">
+            <div>
+                <h2 style="margin:0; color:#bfdbfe;">Arcad</h2>
+                <div style="font-size:12px; color:#94a3b8; margin-top:2px;">Dashboard vidéo</div>
+            </div>
+            <span style="color:#22d3ee; font-weight:bold;">v1</span>
         </div>
 
         <!-- Add a button to open the favorites page -->
+
         <div class="host-box">
             <div class="section-title">Navigation</div>
             <button class="btn-secondary" onclick="location.href='/favorites'">Voir les favoris</button>
@@ -715,26 +860,47 @@
     </div>
 
     <main class="content">
-        <h1 class="page-title">Bibliothèque vidéo</h1>
-        <p class="page-subtitle">Affichage en mosaïque avec filtres album et creator.</p>
+        <h1 class="page-title">Arcad - Bibliothèque vidéo</h1>
+        <p class="page-subtitle">Mode sombre bleu, tri facile, lecture et gestion centralisée.</p>
+
+        <div class="host-box" style="margin-bottom: 18px;">
+            <div class="section-title">Ajouter une vidéo</div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                <input id="newFileName" class="host-input" type="text" placeholder="Nom du fichier (A69_001_DDDD.mp4)" style="flex:1; min-width:180px;" />
+                <input id="newTitle" class="host-input" type="text" placeholder="Titre (optionnel)" style="flex:1; min-width:170px;" />
+                <select id="newCreator" class="selector" style="width:170px;">
+                    <option value="">Select creator</option>
+                </select>
+                <button class="btn" onclick="createVideo()" style="flex:0; min-width:120px;">Ajouter</button>
+            </div>
+        </div>
+
         <div id="videoCount" class="count-box"></div>
         <div id="videos" class="video-grid"></div>
     </main>
 </div>
 <div id="playerModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center;">
     <div style="width:82%; max-width:1100px; background:#111; border-radius:12px; overflow:hidden;">
-        <div style="padding:12px 16px; background:#1b1b1b;">
-            <div id="playerTitle" style="font-weight:bold; margin-bottom:10px;">Lecture vidéo</div>
+        <div style="padding:14px 16px; background: linear-gradient(90deg, #0f172a, #111827); border-bottom: 1px solid rgba(59,130,246,0.3);">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <div>
+                    <h3 id="playerTitle" style="margin:0; font-size:20px; color:#dbeafe;">Lecture vidéo</h3>
+                    <div id="playerSubtitle" style="margin-top:4px; font-size:13px; color:#94a3b8;">Cliquez sur les contrôles ou utilisez les flèches ↔ et PageUp/PageDown</div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <span style="font-size:12px; color:#93c5fd; background:rgba(59,130,246,0.18); padding:4px 8px; border-radius:8px;">Favoris : <strong style="color:#fff;" id="playerFavoriteState">-</strong></span>
+                    <span style="font-size:12px; color:#93c5fd; background:rgba(56,189,248,0.15); padding:4px 8px; border-radius:8px;" id="playerDuration">00:00 / 00:00</span>
+                </div>
+            </div>
 
-            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <input id="albumEditInput"
-                       type="text"
-                       placeholder="Album"
-                       style="background:#222; color:white; border:1px solid #333; border-radius:8px; padding:8px 10px; min-width:220px;">
+            <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div id="albumCheckboxesContainer" style="display:flex; flex-direction:column; gap:6px; padding:10px; background:#0b1124; border:1px solid rgba(148,163,184,0.2); border-radius:10px; min-width:180px;">
+                </div>
 
                 <button onclick="saveAlbumFromModal()"
-                        style="background:#2563eb; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
-                    Save album
+                        title="Sauvegarder l'album"
+                        style="background:#34d399; color:white; border:none; width:38px; height:38px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:center; margin-top:8px;">
+                    💾
                 </button>
 
                 <div style="display:flex; align-items:center; gap:8px;">
@@ -757,29 +923,30 @@
 
         <video id="mainPlayer" controls autoplay style="width:100%; max-height:75vh; background:black;"></video>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#1b1b1b; gap:8px;">
-            <div style="display:flex; gap:8px;">
-                <button id="prevBtn"
-                        onclick="playPrevious()"
-                        style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#111827; gap:8px;">
+            <div style="display:flex; gap:6px; align-items:center;">
+                <button id="prevBtn" onclick="playPrevious()" style="background:rgba(37,99,235,0.9); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
                     ⏮ Prev
                 </button>
-
-                <button id="nextBtn"
-                        onclick="playNext()"
-                        style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                <button onclick="seekBy(-10)" style="background:rgba(14,165,233,0.9); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                    -10s
+                </button>
+                <button onclick="playOrPause()" id="playPauseBtn" style="background:rgba(59,130,246,0.95); color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:700;">
+                    Pause
+                </button>
+                <button onclick="seekBy(10)" style="background:rgba(14,165,233,0.9); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                    +10s
+                </button>
+                <button id="nextBtn" onclick="playNext()" style="background:rgba(37,99,235,0.9); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
                     Next ⏭
                 </button>
             </div>
 
             <div style="display:flex; gap:8px;">
-                <button onclick="openDeleteConfirm()"
-                        style="background:#b91c1c; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                <button onclick="openDeleteConfirm()" style="background:#dc2626; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
                     Supprimer
                 </button>
-
-                <button onclick="closePlayer()"
-                        style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                <button onclick="closePlayer()" style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
                     Fermer
                 </button>
             </div>

@@ -1,6 +1,7 @@
 package com.local.ar44.dto;
 
 import lombok.Data;
+import java.util.List;
 
 @Data
 public class VideoResponse {
@@ -10,7 +11,7 @@ public class VideoResponse {
     private String url;
     private Long durationMs;
     private String creator;
-    private String album;
+    private List<String> albums;
     private Integer sourceIndex;
     private Boolean favorite;
 
