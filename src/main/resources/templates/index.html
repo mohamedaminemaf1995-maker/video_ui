@@ -487,12 +487,45 @@
 
             updatePlayerNavButtons();
         }
+        let deleteCandidateId = null;
+
         function closePlayer() {
             const player = document.getElementById('mainPlayer');
             player.pause();
             player.src = '';
             document.getElementById('playerModal').style.display = 'none';
             currentIndex = -1;
+
+            closeDeleteConfirm();
+        }
+
+        function openDeleteConfirm() {
+            if (!currentVideos || currentIndex < 0 || currentIndex >= currentVideos.length) return;
+            const video = currentVideos[currentIndex];
+            deleteCandidateId = video.id;
+            const confirmText = document.getElementById('confirmText');
+            confirmText.textContent = `Voulez-vous vraiment supprimer "${video.title || 'cette vidéo'}" ?`;
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        function closeDeleteConfirm() {
+            deleteCandidateId = null;
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+
+        async function confirmDelete() {
+            if (!deleteCandidateId) return;
+
+            try {
+                await fetch(`/api/videos/delete?id=${deleteCandidateId}`);
+                setStatus('Vidéo supprimée.');
+                closeDeleteConfirm();
+                closePlayer();
+                await loadVideos();
+            } catch (e) {
+                setStatus('Erreur suppression vidéo');
+                console.error(e);
+            }
         }
 
         function playNext() {
@@ -553,25 +586,28 @@
             document.getElementById('playerModal').style.display = 'flex';
 
             document.getElementById('albumEditInput').value = video.album || '';
+            const level = (video.sourceIndex != null && video.sourceIndex >= 1 && video.sourceIndex <= 5) ? video.sourceIndex : 1;
+            document.getElementById('levelSelect').value = level;
             document.getElementById('levelValue').textContent = video.sourceIndex ?? 0;
 
             updatePlayerNavButtons();
         }
-        function openPlayerByIndex(index) {
-            if (!currentVideos || index < 0 || index >= currentVideos.length) return;
+        async function saveLevelFromModal() {
+            if (currentIndex < 0 || !currentVideos[currentIndex]) return;
 
-            currentIndex = index;
-            const video = currentVideos[index];
+            const video = currentVideos[currentIndex];
+            const newLevel = parseInt(document.getElementById('levelSelect').value, 10);
+            if (Number.isNaN(newLevel)) return;
 
-            document.getElementById('playerTitle').textContent = video.title || 'Lecture vidéo';
-            document.getElementById('mainPlayer').src = video.url || '';
-            document.getElementById('playerModal').style.display = 'flex';
+            await fetch(`/api/videos/source-index/set?id=${video.id}&sourceIndex=${newLevel}`);
 
-            document.getElementById('albumEditInput').value = video.album || '';
-            document.getElementById('levelValue').textContent = video.sourceIndex ?? 0;
+            video.sourceIndex = newLevel;
+            document.getElementById('levelValue').textContent = newLevel;
 
-            updatePlayerNavButtons();
+            await loadVideos();
+            openPlayerByIndex(currentIndex);
         }
+
         async function saveAlbumFromModal() {
             if (currentIndex < 0 || !currentVideos[currentIndex]) return;
 
@@ -650,6 +686,9 @@
             <p class="section-title">Level</p>
             <select id="sourceIndexSelect" class="selector" onchange="onFilterChange()">
                 <option value="">Tous</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
                 <option value="4">4</option>
                 <option value="5">5</option>
             </select>
@@ -657,9 +696,10 @@
 
         <div class="filter-box">
             <p class="section-title">Album</p>
-            <select id="albumSelect" class="selector" onchange="onFilterChange()">
+            <select id="albumSelect" class="selector" onchange="onFilterChange()" multiple size="5">
                 <option value="">Tous</option>
             </select>
+            <div style="font-size:11px; color:#aaa; margin-top:4px;">(Ctrl/Cmd + clic pour plusieurs)</div>
         </div>
         <div class="filter-box">
             <label>
@@ -683,41 +723,42 @@
 </div>
 <div id="playerModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center;">
     <div style="width:82%; max-width:1100px; background:#111; border-radius:12px; overflow:hidden;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:12px 16px; background:#1b1b1b; gap:16px;">
+        <div style="padding:12px 16px; background:#1b1b1b;">
+            <div id="playerTitle" style="font-weight:bold; margin-bottom:10px;">Lecture vidéo</div>
 
-            <div style="flex:1;">
-                <div id="playerTitle" style="font-weight:bold; margin-bottom:10px;">Lecture vidéo</div>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <input id="albumEditInput"
+                       type="text"
+                       placeholder="Album"
+                       style="background:#222; color:white; border:1px solid #333; border-radius:8px; padding:8px 10px; min-width:220px;">
 
-                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                    <input id="albumEditInput"
-                           type="text"
-                           placeholder="Album"
-                           style="background:#222; color:white; border:1px solid #333; border-radius:8px; padding:8px 10px; min-width:220px;">
+                <button onclick="saveAlbumFromModal()"
+                        style="background:#2563eb; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                    Save album
+                </button>
 
-                    <button onclick="saveAlbumFromModal()"
-                            style="background:#2563eb; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
-                        Save album
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="color:#aaa;">Level</span>
+                    <select id="levelSelect" style="background:#222; color:white; border:1px solid #333; border-radius:8px; padding:8px 10px;">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
+                    <button onclick="saveLevelFromModal()"
+                            style="background:#22c55e; color:white; border:none; width:34px; height:34px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                        💾
                     </button>
-
-                    <div style="display:flex; align-items:center; gap:8px; margin-left:8px;">
-                        <span style="color:#aaa;">Level</span>
-
-                        <button onclick="decreaseLevel()"
-                                style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
-                            -
-                        </button>
-
-                        <span id="levelValue" style="min-width:24px; text-align:center; font-weight:bold;">0</span>
-
-                        <button onclick="increaseLevel()"
-                                style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
-                            +
-                        </button>
-                    </div>
+                    <span id="levelValue" style="min-width:30px; text-align:center; font-weight:bold; color:#fff;">0</span>
                 </div>
             </div>
+        </div>
 
-            <div style="display:flex; gap:8px; align-items:center;">
+        <video id="mainPlayer" controls autoplay style="width:100%; max-height:75vh; background:black;"></video>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#1b1b1b; gap:8px;">
+            <div style="display:flex; gap:8px;">
                 <button id="prevBtn"
                         onclick="playPrevious()"
                         style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
@@ -729,6 +770,13 @@
                         style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
                     Next ⏭
                 </button>
+            </div>
+
+            <div style="display:flex; gap:8px;">
+                <button onclick="openDeleteConfirm()"
+                        style="background:#b91c1c; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                    Supprimer
+                </button>
 
                 <button onclick="closePlayer()"
                         style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
@@ -736,9 +784,18 @@
                 </button>
             </div>
         </div>
-
-        <video id="mainPlayer" controls autoplay style="width:100%; max-height:75vh; background:black;"></video>
     </div>
 </div>
+
+<div id="confirmModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:10000; align-items:center; justify-content:center;">
+    <div style="width:90%; max-width:420px; background:#1b1b1b; border-radius:12px; padding:16px; border:1px solid #444;">
+        <p id="confirmText" style="color:#eee; margin-bottom:16px;">Confirmer la suppression ?</p>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button onclick="closeDeleteConfirm()" style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">Annuler</button>
+            <button onclick="confirmDelete()" style="background:#dc2626; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">Supprimer</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
