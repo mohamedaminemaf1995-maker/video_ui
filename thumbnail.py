@@ -24,7 +24,7 @@ OUTPUT_DIR = "thumbnails"
 FFMPEG_PATH = "ffmpeg"
 
 CAPTURE_TIME = "00:00:02"
-THUMBNAIL_SIZE = "320:-1"   # ex: 160:-1 / 320:-1 / 640:-1
+THUMBNAIL_SIZE = "240:-1"   # ex: 160:-1 / 320:-1 / 640:-1
 JPEG_QUALITY = "6"          # plus grand = plus léger, 2 = meilleure qualité
 OVERWRITE = False
 MAX_WORKERS = 6             # essaye 4, 6 ou 8

@@ -272,6 +272,7 @@
     <script>
         let currentVideos = [];
         let currentIndex = -1;
+        let selectedVideoIds = new Set();
 
         async function fetchJson(url) {
             const res = await fetch(url);
@@ -356,6 +357,8 @@
 
                 card.innerHTML = `
     <div style="position:relative;">
+        <input type="checkbox" class="video-checkbox" data-id="${v.id}" style="position:absolute; top:8px; right:8px; width:20px; height:20px; cursor:pointer; z-index:10;" onchange="toggleVideoSelection(${v.id}, this.checked)" />
+        
         <img
             src="/api/videos/thumbnail?id=${v.id}"
             class="video-player"
@@ -428,6 +431,7 @@
                 }
                 renderVideos(videos);
                 setStatus('');
+                document.getElementById('sortSelect').value = 'default';
             } catch (e) {
                 setStatus('Erreur chargement vidéos');
                 console.error(e);
@@ -554,6 +558,89 @@
         async function onFilterChange() {
             await loadVideos();
         }
+
+        function onSortChange() {
+            const sortOrder = document.getElementById('sortSelect').value;
+            applySortOrder(sortOrder);
+            renderVideos(currentVideos);
+        }
+
+        function applySortOrder(order) {
+            if (!currentVideos || currentVideos.length === 0) return;
+
+            switch (order) {
+                case 'name-asc':
+                    currentVideos.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+                    break;
+                case 'name-desc':
+                    currentVideos.sort((a, b) => (b.title || '').localeCompare(a.title || ''));
+                    break;
+                case 'recent':
+                    currentVideos.sort((a, b) => (b.id || 0) - (a.id || 0));
+                    break;
+                case 'oldest':
+                    currentVideos.sort((a, b) => (a.id || 0) - (b.id || 0));
+                    break;
+                case 'default':
+                default:
+                    // No sort, keep as-is
+                    break;
+            }
+        }
+
+        function toggleVideoSelection(videoId, isChecked) {
+            if (isChecked) {
+                selectedVideoIds.add(videoId);
+            } else {
+                selectedVideoIds.delete(videoId);
+            }
+            updateSelectionCount();
+        }
+
+        function selectAllVisible() {
+            currentVideos.forEach(v => selectedVideoIds.add(v.id));
+            document.querySelectorAll('.video-checkbox').forEach(cb => cb.checked = true);
+            updateSelectionCount();
+        }
+
+        function selectNone() {
+            selectedVideoIds.clear();
+            document.querySelectorAll('.video-checkbox').forEach(cb => cb.checked = false);
+            updateSelectionCount();
+        }
+
+        function updateSelectionCount() {
+            const count = selectedVideoIds.size;
+            const countEl = document.getElementById('selectionCount');
+            if (countEl) {
+                countEl.textContent = count > 0 ? `${count} sélectionné(s)` : '';
+            }
+        }
+
+        async function exportM3U() {
+            if (selectedVideoIds.size === 0) {
+                setStatus('Veuillez sélectionner au moins une vidéo.');
+                return;
+            }
+
+            const selectedVideos = currentVideos.filter(v => selectedVideoIds.has(v.id));
+            
+            let m3uContent = '#EXTM3U\n';
+            selectedVideos.forEach(v => {
+                m3uContent += `#EXTINF:${Math.floor((v.durationMs || 0) / 1000)},${v.title || 'Vidéo'}\n`;
+                m3uContent += `${v.url}\n`;
+            });
+
+            const blob = new Blob([m3uContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `arcad_playlist_${new Date().getTime()}.m3u`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            setStatus(`Playlist M3U exportée (${selectedVideos.length} vidéo(s)).`);
+        }
         // openPlayerByIndex is implemented later; this placeholder is intentionally kept for ordering when script is parsed.        let deleteCandidateId = null;
 
         function closePlayer() {
@@ -626,6 +713,17 @@
             } else {
                 player.pause();
             }
+        }
+
+        function openInVLC() {
+            const video = currentVideos[currentIndex];
+            if (!video || !video.url) {
+                setStatus('Aucune vidéo chargée');
+                return;
+            }
+            // Using vlc:// protocol handler (needs user VLC installation & registration)
+            const vlcUrl = `vlc://${encodeURIComponent(video.url)}`;
+            window.open(vlcUrl, '_blank');
         }
         function playPrevious() {
             if (!currentVideos || currentVideos.length === 0) return;
@@ -820,6 +918,28 @@
             <input id="hostInput" class="host-input" type="text" placeholder="192.168.1.44">
             <button class="btn" onclick="updateHost()">Modifier host</button>
         </div>
+
+        <div class="filter-box">
+            <p class="section-title">Tri</p>
+            <select id="sortSelect" class="selector" onchange="onSortChange()">
+                <option value="default">Défaut</option>
+                <option value="name-asc">Nom (A-Z)</option>
+                <option value="name-desc">Nom (Z-A)</option>
+                <option value="recent">Plus récent</option>
+                <option value="oldest">Plus ancien</option>
+            </select>
+        </div>
+
+        <div class="filter-box">
+            <p class="section-title">Sélection</p>
+            <div style="display:flex; gap:4px; flex-direction:column;">
+                <button class="btn-secondary" onclick="selectAllVisible()" style="font-size:12px; padding:6px 8px;">Tout sél.</button>
+                <button class="btn-secondary" onclick="selectNone()" style="font-size:12px; padding:6px 8px;">Annuler</button>
+                <button class="btn" onclick="exportM3U()" style="font-size:12px; padding:6px 8px; background:rgba(34,212,153,0.95);">Exporter M3U</button>
+            </div>
+            <div id="selectionCount" style="font-size:11px; color:#93c5fd; margin-top:6px;"></div>
+        </div>
+
         <div class="filter-box">
             <p class="section-title" style="margin:0;">Filters</p>
             <p class="section-title">Creator</p>
@@ -894,7 +1014,7 @@
             </div>
 
             <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <div id="albumCheckboxesContainer" style="display:flex; flex-direction:column; gap:6px; padding:10px; background:#0b1124; border:1px solid rgba(148,163,184,0.2); border-radius:10px; min-width:180px;">
+                <div id="albumCheckboxesContainer" style="display:flex; flex-direction:row; flex-wrap:wrap; gap:8px; padding:10px; background:#0b1124; border:1px solid rgba(148,163,184,0.2); border-radius:10px; min-width:180px;">
                 </div>
 
                 <button onclick="saveAlbumFromModal()"
@@ -942,9 +1062,12 @@
                 </button>
             </div>
 
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button onclick="openDeleteConfirm()" style="background:#dc2626; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
                     Supprimer
+                </button>
+                <button onclick="openInVLC()" style="background:rgba(14,165,233,0.9); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                    Ouvrir dans VLC
                 </button>
                 <button onclick="closePlayer()" style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
                     Fermer

@@ -158,7 +158,15 @@
 <div class="container">
     <div class="top-row">
         <button class="btn-secondary" onclick="location.href='/'">Bibliothèque</button>
-        <h1 class="page-title">Favoris</h1>
+        <h1 class="page-title">Mes Favoris</h1>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+        <button class="btn-secondary" onclick="selectAllVisible()" style="font-size:12px; padding:6px 10px;">Tout sél.</button>
+        <button class="btn-secondary" onclick="selectNone()" style="font-size:12px; padding:6px 10px;">Annuler</button>
+        <button class="btn" onclick="exportM3U()" style="font-size:12px; padding:6px 10px; background:rgba(34,212,153,0.95);">Exporter M3U</button>
+        <div id="selectionCount" style="font-size:12px; color:#93c5fd; padding:6px 10px;"></div>
+        <div id="statusMsg" style="font-size:12px; color:#93c5fd; margin-left:auto;"></div>
     </div>
 
     <div id="videoCount" style="margin-bottom:8px;color:#9ca3af;">0 vidéo(s)</div>
@@ -184,6 +192,7 @@
 <script>
     let currentVideos = [];
     let currentIndex = -1;
+    let selectedVideoIds = new Set();
 
     async function fetchJson(url) {
         const res = await fetch(url);
@@ -201,6 +210,13 @@
         return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
     }
 
+    function setStatus(message) {
+        const statusEl = document.getElementById('statusMsg');
+        if (statusEl) {
+            statusEl.textContent = message || '';
+        }
+    }
+
     function renderVideos(videos) {
         currentVideos = videos || [];
         currentIndex = -1;
@@ -215,6 +231,7 @@
             card.className = 'video-card';
             card.style.position = 'relative';
             card.innerHTML = `
+    <input type="checkbox" class="video-checkbox" data-id="${v.id}" style="position:absolute; top:8px; right:8px; width:20px; height:20px; cursor:pointer; z-index:10;" onchange="toggleVideoSelection(${v.id}, this.checked)" />
     <img alt="thumbnail" src="/api/videos/thumbnail?id=${v.id}" class="video-player" onclick="openPlayerByIndex(${index})" />
     <div class="favorite-icon ${v.favorite ? 'favorite-active' : ''}" onclick="toggleFavorite(event, ${v.id}, this)">♥</div>
     <div class="video-duration">${formatDuration(v.durationMs)}</div>
@@ -238,14 +255,66 @@
     async function toggleFavorite(event, id, element) {
         event.stopPropagation();
         await fetch(`/api/videos/favorite/toggle?id=${id}`);
-        // remove the card when un-favorited
         if (element.classList.contains('favorite-active')) {
             element.classList.remove('favorite-active');
         } else {
             element.classList.add('favorite-active');
         }
-        // reload favorites to reflect order/removal
         await loadFavorites();
+    }
+
+    function toggleVideoSelection(videoId, isChecked) {
+        if (isChecked) {
+            selectedVideoIds.add(videoId);
+        } else {
+            selectedVideoIds.delete(videoId);
+        }
+        updateSelectionCount();
+    }
+
+    function selectAllVisible() {
+        currentVideos.forEach(v => selectedVideoIds.add(v.id));
+        document.querySelectorAll('.video-checkbox').forEach(cb => cb.checked = true);
+        updateSelectionCount();
+    }
+
+    function selectNone() {
+        selectedVideoIds.clear();
+        document.querySelectorAll('.video-checkbox').forEach(cb => cb.checked = false);
+        updateSelectionCount();
+    }
+
+    function updateSelectionCount() {
+        const count = selectedVideoIds.size;
+        const countEl = document.getElementById('selectionCount');
+        if (countEl) {
+            countEl.textContent = count > 0 ? `${count} sélectionné(s)` : '';
+        }
+    }
+
+    async function exportM3U() {
+        if (selectedVideoIds.size === 0) {
+            setStatus('Veuillez sélectionner au moins une vidéo.');
+            return;
+        }
+
+        const selectedVideos = currentVideos.filter(v => selectedVideoIds.has(v.id));
+        
+        let m3uContent = '#EXTM3U\n';
+        selectedVideos.forEach(v => {
+            m3uContent += `#EXTINF:${Math.floor((v.durationMs || 0) / 1000)},${v.title || 'Vidéo'}\n`;
+            m3uContent += `${v.url}\n`;
+        });
+
+        const blob = new Blob([m3uContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `arcad_favoris_${new Date().getTime()}.m3u`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        setStatus(`Playlist M3U exportée (${selectedVideos.length} vidéo(s)).`);
     }
 
     function openPlayerByIndex(index) {
@@ -256,6 +325,7 @@
         document.getElementById('mainPlayer').src = video.url || '';
         document.getElementById('playerModal').style.display = 'flex';
     }
+
     function closePlayer() { const p = document.getElementById('mainPlayer'); p.pause(); p.src=''; document.getElementById('playerModal').style.display='none'; }
     function playNext() { if (!currentVideos || currentVideos.length===0) return; const next=(currentIndex+1)%currentVideos.length; openPlayerByIndex(next); }
     function playPrevious() { if (!currentVideos || currentVideos.length===0) return; const prev=(currentIndex-1+currentVideos.length)%currentVideos.length; openPlayerByIndex(prev); }
