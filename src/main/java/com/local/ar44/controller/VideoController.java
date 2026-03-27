@@ -22,8 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -238,11 +238,8 @@ public class VideoController {
         }
 
         videoRepository.save(v);
-
         return "SourceIndex diminué";
     }
-
-
 
 
     @GetMapping("/thumbnail")
@@ -270,7 +267,13 @@ public class VideoController {
     public String toggleFavorite(@RequestParam Long id) {
         Video v = videoRepository.findById(id).orElseThrow();
 
-        v.setFavorite(v.getFavorite() == null || !v.getFavorite());
+        boolean nowFav = v.getFavorite() == null || !v.getFavorite();
+        v.setFavorite(nowFav);
+        if (nowFav) {
+            v.setFavoriteAt(LocalDateTime.now());
+        } else {
+            v.setFavoriteAt(null);
+        }
 
         videoRepository.save(v);
 
@@ -281,7 +284,7 @@ public class VideoController {
     public List<VideoResponse> getFavorites(HttpSession session) {
         String host = resolveHost(session);
 
-        return videoRepository.findByFavoriteTrue()
+        return videoRepository.findByFavoriteTrueOrderByFavoriteAtDesc()
                 .stream()
                 .map(v -> toResponse(v, host))
                 .toList();

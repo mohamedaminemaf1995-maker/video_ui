@@ -482,9 +482,11 @@
             document.getElementById('mainPlayer').src = video.url || '';
             document.getElementById('playerModal').style.display = 'flex';
 
+            document.getElementById('albumEditInput').value = video.album || '';
+            document.getElementById('levelValue').textContent = video.sourceIndex ?? 0;
+
             updatePlayerNavButtons();
         }
-
         function closePlayer() {
             const player = document.getElementById('mainPlayer');
             player.pause();
@@ -621,9 +623,15 @@
 </head>
 <body>
 <div class="app">
-    <aside class="sidebar">
-        <div class="top-row">
-            <button class="icon-btn" onclick="saveDb()" title="Sauvegarder la base">💾</button>
+    <div class="sidebar">
+        <div style="display:flex; gap:8px; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <h2 style="margin:0;">Bibliothèque</h2>
+        </div>
+
+        <!-- Add a button to open the favorites page -->
+        <div class="host-box">
+            <div class="section-title">Navigation</div>
+            <button class="btn-secondary" onclick="location.href='/favorites'">Voir les favoris</button>
         </div>
 
         <div class="host-box">
@@ -664,7 +672,7 @@
         </div>
 
         <div id="status" class="status"></div>
-    </aside>
+    </div>
 
     <main class="content">
         <h1 class="page-title">Bibliothèque vidéo</h1>

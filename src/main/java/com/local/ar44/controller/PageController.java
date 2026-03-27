@@ -10,4 +10,9 @@ public class PageController {
     public String index() {
         return "index";
     }
+
+    @GetMapping("/favorites")
+    public String favorites() {
+        return "favorites";
+    }
 }

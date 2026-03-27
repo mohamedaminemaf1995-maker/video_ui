@@ -13,6 +13,8 @@ public interface VideoRepository extends JpaRepository<Video, Long> {
     List<Video> findByAlbumIgnoreCase(String album);
     List<Video> findByTitleContainingIgnoreCase(String title);
     List<Video> findByFavoriteTrue();
+    List<Video> findByFavoriteTrueOrderByFavoriteAtDesc();
+
     @Query("select distinct v.creator from Video v where v.creator is not null order by v.creator")
     List<String> findDistinctCreators();
 

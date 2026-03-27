@@ -25,4 +25,5 @@ public class Video {
     private String thumbnailUrl;
     private LocalDateTime createdAt;
     private Boolean favorite = false;
+    private LocalDateTime favoriteAt;
 }
