@@ -3,6 +3,7 @@ package com.local.ar44.service;
 import com.local.ar44.dto.AppConfig;
 import com.local.ar44.dto.Video;
 import com.local.ar44.repo.AppConfigRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Files;
@@ -14,10 +15,18 @@ public class ThumbnailService {
     private final AppConfigRepository appConfigRepository;
     private final ThumbnailStorageService thumbnailStorageService;
 
+    // configurable width and quality
+    private final int thumbWidth;
+    private final int thumbQuality;
+
     public ThumbnailService(AppConfigRepository appConfigRepository,
-                            ThumbnailStorageService thumbnailStorageService) {
+                            ThumbnailStorageService thumbnailStorageService,
+                            @Value("${thumbnail.width:180}") int thumbWidth,
+                            @Value("${thumbnail.quality:4}") int thumbQuality) {
         this.appConfigRepository = appConfigRepository;
         this.thumbnailStorageService = thumbnailStorageService;
+        this.thumbWidth = thumbWidth;
+        this.thumbQuality = thumbQuality;
     }
 
     public Path generateIfMissing(Video video) throws Exception {
@@ -52,8 +61,8 @@ public class ThumbnailService {
                 "-ss", seek,
                 "-i", videoUrl,
                 "-frames:v", "1",
-                "-vf", "scale=180:-1",
-                "-q:v", "24",
+                "-vf", "scale=" + thumbWidth + ":-1",
+                "-q:v", String.valueOf(thumbQuality),
                 thumbPath.toAbsolutePath().toString()
         );
 

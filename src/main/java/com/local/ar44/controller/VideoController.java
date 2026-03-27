@@ -10,18 +10,15 @@ import com.local.ar44.service.ThumbnailStorageService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -243,24 +240,21 @@ public class VideoController {
 
 
     @GetMapping("/thumbnail")
-    public ResponseEntity<Resource> getThumbnail(@RequestParam Long id) {
-        try {
-            Path thumbPath = thumbnailStorageService.getThumbPath(id);
+    public ResponseEntity<Resource> getThumbnail(@RequestParam Long id) throws MalformedURLException {
+        Video video = videoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Video introuvable"));
 
-            if (!Files.exists(thumbPath) || Files.size(thumbPath) == 0) {
-                return ResponseEntity.notFound().build();
-            }
+        Path path = thumbnailStorageService.getThumbPath(video.getFileName());
 
-            Resource resource = new FileSystemResource(thumbPath.toFile());
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.IMAGE_JPEG)
-                    .cacheControl(CacheControl.maxAge(5, TimeUnit.HOURS).cachePublic())
-                    .body(resource);
-
-        } catch (Exception e) {
+        if (!Files.exists(path)) {
             return ResponseEntity.notFound().build();
         }
+
+        Resource resource = new UrlResource(path.toUri());
+
+        return ResponseEntity.ok()
+                .header("Content-Type", "image/jpeg")
+                .body(resource);
     }
 
     @GetMapping("/favorite/toggle")
