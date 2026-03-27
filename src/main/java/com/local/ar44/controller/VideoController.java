@@ -223,6 +223,21 @@ public class VideoController {
         }
         return "SourceIndex augmenté";
     }
+    @GetMapping("/source-index/set")
+    public String setSourceIndex(@RequestParam Long id, @RequestParam Integer sourceIndex) {
+        Video v = videoRepository.findById(id).orElseThrow();
+
+        if (sourceIndex == null) {
+            throw new IllegalArgumentException("sourceIndex is required");
+        }
+
+        int requested = Math.max(0, Math.min(5, sourceIndex));
+        v.setSourceIndex(requested);
+        videoRepository.save(v);
+
+        return "SourceIndex réglé";
+    }
+
     @GetMapping("/source-index/decrease")
     public String decreaseSourceIndex(@RequestParam Long id) {
         Video v = videoRepository.findById(id).orElseThrow();
