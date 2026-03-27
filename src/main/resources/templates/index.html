@@ -379,7 +379,7 @@
     </div>
 
     <div class="video-info">
-        <div class="video-title">${v.title ?? ''}</div>
+        <div class="video-title" title="${v.title ?? ''}">${(v.title ?? '').substring(0, 7)}${(v.title ?? '').length > 7 ? '' : ''}</div>
         <div class="video-meta">
             ${(v.creator ?? 'Unknown')}
             ${Array.isArray(v.albums) && v.albums.length > 0 ? '• ' + v.albums.join(', ') : ''}
@@ -913,11 +913,6 @@
             <button class="btn-secondary" onclick="location.href='/favorites'">Voir les favoris</button>
         </div>
 
-        <div class="host-box">
-            <p class="section-title">Host</p>
-            <input id="hostInput" class="host-input" type="text" placeholder="192.168.1.44">
-            <button class="btn" onclick="updateHost()">Modifier host</button>
-        </div>
 
         <div class="filter-box">
             <p class="section-title">Tri</p>
@@ -930,18 +925,8 @@
             </select>
         </div>
 
-        <div class="filter-box">
-            <p class="section-title">Sélection</p>
-            <div style="display:flex; gap:4px; flex-direction:column;">
-                <button class="btn-secondary" onclick="selectAllVisible()" style="font-size:12px; padding:6px 8px;">Tout sél.</button>
-                <button class="btn-secondary" onclick="selectNone()" style="font-size:12px; padding:6px 8px;">Annuler</button>
-                <button class="btn" onclick="exportM3U()" style="font-size:12px; padding:6px 8px; background:rgba(34,212,153,0.95);">Exporter M3U</button>
-            </div>
-            <div id="selectionCount" style="font-size:11px; color:#93c5fd; margin-top:6px;"></div>
-        </div>
 
         <div class="filter-box">
-            <p class="section-title" style="margin:0;">Filters</p>
             <p class="section-title">Creator</p>
             <select id="creatorSelect" class="selector" onchange="onFilterChange()">
                 <option value="">Tous</option>
@@ -977,6 +962,24 @@
         </div>
 
         <div id="status" class="status"></div>
+
+        
+        <div class="host-box">
+            <p class="section-title">Host</p>
+            <input id="hostInput" class="host-input" type="text" placeholder="192.168.1.44">
+            <button class="btn" onclick="updateHost()">Modifier host</button>
+        </div>
+
+        <div class="filter-box">
+            <p class="section-title">Sélection</p>
+            <div style="display:flex; gap:4px; flex-direction:column;">
+                <button class="btn-secondary" onclick="selectAllVisible()" style="font-size:12px; padding:6px 8px;">Tout sél.</button>
+                <button class="btn-secondary" onclick="selectNone()" style="font-size:12px; padding:6px 8px;">Annuler</button>
+                <button class="btn" onclick="exportM3U()" style="font-size:12px; padding:6px 8px; background:rgba(34,212,153,0.95);">Exporter M3U</button>
+            </div>
+            <div id="selectionCount" style="font-size:11px; color:#93c5fd; margin-top:6px;"></div>
+        </div>
+
     </div>
 
     <main class="content">
