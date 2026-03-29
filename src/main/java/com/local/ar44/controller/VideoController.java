@@ -145,12 +145,12 @@ public class VideoController {
     // 🔍 FILTERS
     // ========================
     // ========================
-    // 🕒 RECENTLY WATCHED (Mock: dernières 20 vidéos par date de création ou favoriteAt)
+    // 🕒 RECENTLY WATCHED (Mock: dernières 30 vidéos par date de création ou favoriteAt)
     // ========================
     @GetMapping("/recently-watched")
     public List<VideoResponse> getRecentlyWatched(HttpSession session) {
         String host = resolveHost(session);
-        // Mock: on prend les 20 dernières vidéos créées ou modifiées (favoriteAt ou createdAt)
+        // Mock: on prend les 30 dernières vidéos créées ou modifiées (favoriteAt ou createdAt)
         List<Video> all = videoRepository.findAll();
         all.sort((a, b) -> {
             LocalDateTime da = a.getFavoriteAt() != null ? a.getFavoriteAt() : a.getCreatedAt();
@@ -160,7 +160,7 @@ public class VideoController {
             if (db == null) return -1;
             return db.compareTo(da);
         });
-        return all.stream().limit(20).map(v -> toResponse(v, host)).toList();
+        return all.stream().limit(30).map(v -> toResponse(v, host)).toList();
     }
 
     @GetMapping("/by-creator")
