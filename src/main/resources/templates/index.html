@@ -427,7 +427,7 @@
                 if (album.length > 0) {
                     videos = videos.filter(v => {
                         const videoAlbums = Array.isArray(v.albums) ? v.albums : [];
-                        // Intersection : tous les albums sélectionnés doivent être présents dans la vidéo
+                        // ET logique : la vidéo doit contenir tous les albums sélectionnés (peu importe s'il y en a d'autres)
                         return album.every(selected => videoAlbums.includes(selected));
                     });
                 }
