@@ -177,7 +177,7 @@
             overflow: hidden;
             border: 1px solid rgba(56, 189, 248, 0.25);
             transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-        }
+            }
 
         .video-card:hover {
             transform: translateY(-3px) scale(1.01);
@@ -210,6 +210,36 @@
             font-size: 12px;
             color: #a5b4fc;
         }
+            .video-thumb {
+                width: 100%;
+                height: 170px;
+                display: block;
+                object-fit: cover;
+                background: #000;
+                cursor: pointer;
+            }
+            .video-overlay {
+                position: absolute;
+                left: 0; right: 0; bottom: 0;
+                padding: 16px 12px 10px 12px;
+                background: linear-gradient(0deg, rgba(15,23,42,0.82) 80%, rgba(15,23,42,0.05) 100%);
+                color: #e0f2fe;
+                width: 100%;
+                z-index: 2;
+            }
+            .video-title {
+                font-size: 15px;
+                font-weight: 700;
+                margin-bottom: 2px;
+                word-break: break-word;
+                color: #e0f2fe;
+                text-shadow: 0 2px 8px #000a;
+            }
+            .video-meta {
+                font-size: 12px;
+                color: #a5b4fc;
+                text-shadow: 0 1px 6px #000a;
+            }
 
         .status {
             margin-top: 10px;
@@ -222,24 +252,7 @@
             color: #94a3b8;
             padding: 24px 8px;
         }
-
-        .count-box {
-            margin-top: 6px;
-            font-size: 12px;
-            color: #94a3b8;
-        }
-
-        .video-duration {
-            position: absolute;
-            bottom: 6px;
-            right: 6px;
-            background: rgba(15, 23, 42, 0.95);
-            color: white;
-            font-size: 12px;
-            padding: 3px 6px;
-            border-radius: 8px;
-            font-weight: 600;
-        }
+       
 
         .favorite-icon {
             position: absolute;
@@ -250,17 +263,17 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(15, 23, 42, 0.7);
+            background: rgba(15,23,42,0.8);
             border-radius: 10px;
             font-size: 18px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            color: #e5e7eb;
+            color: #e2e8f0;
+            transition: transform 0.2s ease;
         }
 
         .favorite-icon:hover {
-            transform: scale(1.14);
-            background: rgba(14, 165, 233, 0.6);
+            transform: scale(1.1);
+            background: rgba(14,165,233,0.6);
         }
 
         .favorite-active {
@@ -338,6 +351,7 @@
             document.getElementById('playerModal').style.display = 'none';
         }
         function renderVideos(videos) {
+
             currentVideos = videos || [];
             currentIndex = -1;
 
@@ -351,57 +365,37 @@
                 return;
             }
 
+            // Vérifier si au moins une vidéo a une URL valide
+            const hasValidUrl = currentVideos.some(v => v.url && typeof v.url === 'string' && v.url.trim() !== '');
+            if (!hasValidUrl) {
+                container.innerHTML = '<div class="empty-state" style="color:#f87171;">Erreur : aucune vidéo n\'a d\'URL valide.<br>Vérifiez la configuration du host ou la base de données.<br>Astuce : testez l\'API /api/videos dans un navigateur pour voir les URLs générées.</div>';
+                return;
+            }
+
             currentVideos.forEach((v, index) => {
                 const card = document.createElement('div');
                 card.className = 'video-card';
-                
+
                 const thumbUrl = `/api/videos/thumbnail?id=${v.id}`;
-                console.log(`[THUMBNAIL] Rendering video ${v.id}: ${v.title} → URL: ${thumbUrl}, FileName: ${v.fileName}`);
 
                 card.innerHTML = `
     <div style="position:relative;">
+        <div class="favorite-icon ${v.favorite ? 'favorite-active' : ''}" onclick="toggleFavoriteModal(${v.id}, this)">♥</div>
         <input type="checkbox" class="video-checkbox" data-id="${v.id}" style="position:absolute; top:8px; right:8px; width:20px; height:20px; cursor:pointer; z-index:10;" onchange="toggleVideoSelection(${v.id}, this.checked)" />
-        
-        <img
-            src="${thumbUrl}"
-            class="video-player"
-            loading="lazy"
-            onclick="openPlayerByIndex(${index})"
-            onerror="console.error('[THUMBNAIL-ERROR] Erreur chargement thumbnail pour ID ${v.id}: ${thumbUrl}')"
-            onload="console.log('[THUMBNAIL-OK] Thumbnail chargée avec succès pour ID ${v.id}')"
-        />
-
-        <!-- FAVORITE -->
-        <div class="favorite-icon ${v.favorite ? 'favorite-active' : ''}"
-             onclick="toggleFavorite(event, ${v.id}, this)">
-            ♥
+        <img src="${thumbUrl}" class="video-thumb" loading="lazy" onclick="openPlayerByIndex(${index})" onerror="this.style.opacity=0.3;" />
+        <div class="video-overlay">
+            <div class="video-title" title="${v.title ?? ''}">${v.title ?? ''}</div>
+            <div class="video-meta">
+                ${(v.creator ?? 'Unknown')}
+                ${Array.isArray(v.albums) && v.albums.length > 0 ? '• ' + v.albums.join(', ') : ''}
+                ${v.sourceIndex != null ? '• ' + v.sourceIndex : ''}
+            </div>
         </div>
-
-        <!-- durée -->
-        <div class="video-duration">
-            ${formatDuration(v.durationMs)}
-        </div>
+        <div class="video-duration">${formatDuration(v.durationMs)}</div>
     </div>
-
-    <div class="video-info">
-        <div class="video-title" title="${v.title ?? ''}">${(v.title ?? '').substring(0, 7)}${(v.title ?? '').length > 7 ? '' : ''}</div>
-        <div class="video-meta">
-            ${(v.creator ?? 'Unknown')}
-            ${Array.isArray(v.albums) && v.albums.length > 0 ? '• ' + v.albums.join(', ') : ''}
-            ${v.sourceIndex != null ? '• ' + v.sourceIndex : ''}
-        </div>
-    </div>
-`;
-
+                `;
                 container.appendChild(card);
             });
-        }
-        async function toggleFavorite(event, id, element) {
-            event.stopPropagation(); // 🔥 empêche ouvrir la vidéo
-
-            await fetch(`/api/videos/favorite/toggle?id=${id}`);
-
-            element.classList.toggle('favorite-active');
         }
 
         async function toggleFavoriteModal(videoId, button) {
@@ -451,7 +445,6 @@
                 document.getElementById('sortSelect').value = 'default';
             } catch (e) {
                 setStatus('Erreur chargement vidéos');
-                console.error(e);
             }
         }
 
@@ -468,9 +461,7 @@
                     opt1.textContent = album;
                     filterSelect.appendChild(opt1);
                 });
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) {}
         }
 
         async function loadCreators() {
@@ -494,18 +485,14 @@
                     opt2.textContent = creator;
                     newCreator.appendChild(opt2);
                 });
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) {}
         }
 
         async function loadHost() {
             try {
                 const host = await fetchText('/api/config/host');
                 document.getElementById('hostInput').value = host;
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) {}
         }
 
         async function updateHost() {
@@ -519,7 +506,6 @@
                 setStatus('Host mis à jour');
             } catch (e) {
                 setStatus('Erreur mise à jour host');
-                console.error(e);
             }
         }
 
@@ -530,7 +516,6 @@
                 setStatus('Base sauvegardée ✔');
             } catch (e) {
                 setStatus('Erreur sauvegarde DB');
-                console.error(e);
             }
         }
 
@@ -924,15 +909,12 @@
 <body>
 <div class="app">
     <div class="sidebar">
-        <div style="display:flex; gap:8px; align-items:center; justify-content:space-between; margin-bottom:14px;">
-            <div>
-                <h2 style="margin:0; color:#bfdbfe;">Arcad</h2>
-                <div style="font-size:12px; color:#94a3b8; margin-top:2px;">Dashboard vidéo</div>
-            </div>
-            <div style="display:flex; gap:6px; align-items:center;">
-                <span style="color:#22d3ee; font-weight:bold;">v1</span>
-                <button onclick="logout()" title="Déconnexion" style="background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s ease;" onmouseover="this.style.background='rgba(239,68,68,0.3)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'">Déco</button>
-            </div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+            <img src="/2938237.png" alt="icon" style="width:38px; height:38px; border-radius:10px; box-shadow:0 2px 8px #0003;">
+            <span style="font-family:'Segoe UI',Arial,sans-serif; font-size:1.7rem; font-weight:800; letter-spacing:0.04em; background:linear-gradient(90deg,#38bdf8,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent; background-clip:text; color:transparent;">Ar44</span>
+            <button onclick="logout()" title="Déconnexion" style="margin-left:auto; background:rgba(239,68,68,0.18); border:none; color:#f87171; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.32)'" onmouseout="this.style.background='rgba(239,68,68,0.18)'">
+                <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' viewBox='0 0 24 24'><path stroke='#f87171' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M17 17L7 7m10 0L7 17'/></svg>
+            </button>
         </div>
 
         <!-- Add a button to open the favorites page -->
@@ -1012,7 +994,10 @@
     </div>
 
     <main class="content">
-        <h1 class="page-title">Arcad - Bibliothèque vidéo</h1>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+            <img src="/2938237.png" alt="icon" style="width:32px; height:32px; border-radius:8px; box-shadow:0 2px 8px #0003;">
+            <span style="font-family:'Segoe UI',Arial,sans-serif; font-size:2.1rem; font-weight:900; letter-spacing:0.04em; background:linear-gradient(90deg,#38bdf8,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent; background-clip:text; color:transparent;">Ar44</span>
+        </div>
         <p class="page-subtitle">Mode sombre bleu, tri facile, lecture et gestion centralisée.</p>
 
         <div class="host-box" style="margin-bottom: 18px;">

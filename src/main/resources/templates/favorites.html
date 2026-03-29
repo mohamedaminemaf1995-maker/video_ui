@@ -79,12 +79,12 @@
         }
 
         .video-card {
-            background: linear-gradient(145deg, #0b1225, #0f172a);
+            position: relative;
             border-radius: 14px;
             overflow: hidden;
             border: 1px solid var(--border);
-            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-            position: relative;
+            transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+            background: #0b1225;
         }
 
         .video-card:hover {
@@ -92,29 +92,35 @@
             box-shadow: 0 14px 32px rgba(29,78,216,0.35);
             border-color: rgba(59,130,246,0.7);
         }
-
-        .video-player {
+        .video-thumb {
             width: 100%;
             height: 170px;
+            display: block;
             object-fit: cover;
-            cursor: pointer;
             background: #000;
+            cursor: pointer;
         }
-
-        .video-info {
-            padding: 12px;
-        }
-
-        .video-title {
-            font-weight: 700;
-            font-size: 15px;
-            margin-bottom: 6px;
+        .video-overlay {
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            padding: 16px 12px 10px 12px;
+            background: linear-gradient(0deg, rgba(15,23,42,0.82) 80%, rgba(15,23,42,0.05) 100%);
             color: #e0f2fe;
+            width: 100%;
+            z-index: 2;
         }
-
+        .video-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 2px;
+            word-break: break-word;
+            color: #e0f2fe;
+            text-shadow: 0 2px 8px #000a;
+        }
         .video-meta {
             font-size: 12px;
             color: #a5b4fc;
+            text-shadow: 0 1px 6px #000a;
         }
 
         .favorite-icon {
@@ -172,11 +178,20 @@
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="top-row">
-        <button class="btn-secondary" onclick="location.href='/'">Bibliothèque</button>
-        <h1 class="page-title">Mes Favoris</h1>
-        <button onclick="logout()" title="Déconnexion" style="margin-left:auto; background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s ease;" onmouseover="this.style.background='rgba(239,68,68,0.3)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'">Déconnexion</button>
+<div class="app">
+    <div class="sidebar" style="padding: 10px 8px; min-width: 220px; width: 220px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+            <img src="/2938237.png" alt="icon" style="width:38px; height:38px; border-radius:10px; box-shadow:0 2px 8px #0003;">
+            <span style="font-family:'Segoe UI',Arial,sans-serif; font-size:1.7rem; font-weight:800; letter-spacing:0.04em; background:linear-gradient(90deg,#38bdf8,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent; background-clip:text; color:transparent;">Ar44</span>
+            <button onclick="logout()" title="Déconnexion" style="margin-left:auto; background:rgba(239,68,68,0.18); border:none; color:#f87171; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.32)'" onmouseout="this.style.background='rgba(239,68,68,0.18)'">
+                <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' viewBox='0 0 24 24'><path stroke='#f87171' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M17 17L7 7m10 0L7 17'/></svg>
+            </button>
+        </div>
+    </div>
+    <div class="container">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+
+        <button class="btn-secondary" onclick="location.href='/'" style="margin-left:auto;">Bibliothèque</button>
     </div>
 
     <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
@@ -369,18 +384,17 @@
         currentVideos.forEach((v, index) => {
             const card = document.createElement('div');
             card.className = 'video-card';
-            // expose id for drag & drop ordering
             card.dataset.id = v.id;
-            card.style.position = 'relative';
             card.innerHTML = `
-    <input type="checkbox" class="video-checkbox" data-id="${v.id}" style="position:absolute; top:8px; right:8px; width:20px; height:20px; cursor:pointer; z-index:10;" onchange="toggleVideoSelection(${v.id}, this.checked)" />
-    <img alt="thumbnail" src="/api/videos/thumbnail?id=${v.id}" class="video-player" onclick="openPlayerByIndex(${index})" />
-    <div class="favorite-icon ${v.favorite ? 'favorite-active' : ''}" onclick="toggleFavorite(event, ${v.id}, this)">♥</div>
-    <div class="video-duration">${formatDuration(v.durationMs)}</div>
-    <div class="video-info">
-        <div class="video-title">${v.title ?? ''}</div>
-        <div class="video-meta">${(v.creator ?? 'Unknown')} ${(v.album) ? '• ' + v.album : ''}</div>
-    </div>`;
+                <img alt="thumbnail" src="/api/videos/thumbnail?id=${v.id}" class="video-thumb" onclick="openPlayerByIndex(${index})" />
+                <div class="video-overlay">
+                    <div class="video-title">${v.title ?? ''}</div>
+                    <div class="video-meta">${(v.creator ?? 'Unknown')} ${(v.album) ? '• ' + v.album : ''}</div>
+                </div>
+                <div class="favorite-icon ${v.favorite ? 'favorite-active' : ''}" onclick="toggleFavorite(event, ${v.id}, this)">♥</div>
+                <div class="video-duration">${formatDuration(v.durationMs)}</div>
+                <input type="checkbox" class="video-checkbox" data-id="${v.id}" style="position:absolute; top:8px; right:8px; width:20px; height:20px; cursor:pointer; z-index:10;" onchange="toggleVideoSelection(${v.id}, this.checked)" />
+            `;
             container.appendChild(card);
         });
         // Re-init sortable after rendering

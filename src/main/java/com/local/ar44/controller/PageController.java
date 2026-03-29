@@ -28,4 +28,11 @@ public class PageController {
         }
         return "favorites";
     }
+    @GetMapping("/recently")
+    public Object recently(HttpSession session) {
+        if (session.getAttribute("authenticated") == null || !(boolean) session.getAttribute("authenticated")) {
+            return new RedirectView("/login", true);
+        }
+        return "recently";
+    }
 }

@@ -1,3 +1,4 @@
+
 package com.local.ar44.controller;
 
 import com.local.ar44.dto.Album;
@@ -143,6 +144,24 @@ public class VideoController {
     // ========================
     // 🔍 FILTERS
     // ========================
+    // ========================
+    // 🕒 RECENTLY WATCHED (Mock: dernières 20 vidéos par date de création ou favoriteAt)
+    // ========================
+    @GetMapping("/recently-watched")
+    public List<VideoResponse> getRecentlyWatched(HttpSession session) {
+        String host = resolveHost(session);
+        // Mock: on prend les 20 dernières vidéos créées ou modifiées (favoriteAt ou createdAt)
+        List<Video> all = videoRepository.findAll();
+        all.sort((a, b) -> {
+            LocalDateTime da = a.getFavoriteAt() != null ? a.getFavoriteAt() : a.getCreatedAt();
+            LocalDateTime db = b.getFavoriteAt() != null ? b.getFavoriteAt() : b.getCreatedAt();
+            if (da == null && db == null) return 0;
+            if (da == null) return 1;
+            if (db == null) return -1;
+            return db.compareTo(da);
+        });
+        return all.stream().limit(20).map(v -> toResponse(v, host)).toList();
+    }
 
     @GetMapping("/by-creator")
     public List<VideoResponse> getByCreator(@RequestParam String creator, HttpSession session) {
