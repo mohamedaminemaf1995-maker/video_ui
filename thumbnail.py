@@ -111,8 +111,10 @@ def safe_file_stem(file_name: str, video_id: int) -> str:
     if not stem:
         stem = f"video_{video_id}"
 
+	# Remplace uniquement les caractères interdits, mais PAS les espaces
     stem = re.sub(r'[<>:"/\\|?*]', "_", stem)
-    stem = re.sub(r"\s+", "_", stem).strip("_")
+    # Ne remplace plus les espaces par des underscores
+    # stem = re.sub(r"\s+", "_", stem).strip("_")
 
     if not stem:
         stem = f"video_{video_id}"

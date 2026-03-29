@@ -49,6 +49,23 @@
             background: rgba(15,23,42,0.95);
         }
 
+        .btn {
+            padding: 8px 14px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.25);
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            transform: translateY(-1px);
+        }
+
         .page-title {
             font-size: 26px;
             margin: 0;
@@ -159,12 +176,13 @@
     <div class="top-row">
         <button class="btn-secondary" onclick="location.href='/'">Bibliothèque</button>
         <h1 class="page-title">Mes Favoris</h1>
+        <button onclick="logout()" title="Déconnexion" style="margin-left:auto; background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s ease;" onmouseover="this.style.background='rgba(239,68,68,0.3)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'">Déconnexion</button>
     </div>
 
     <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
         <button class="btn-secondary" onclick="selectAllVisible()" style="font-size:12px; padding:6px 10px;">Tout sél.</button>
         <button class="btn-secondary" onclick="selectNone()" style="font-size:12px; padding:6px 10px;">Annuler</button>
-        <button class="btn" onclick="exportM3U()" style="font-size:12px; padding:6px 10px; background:rgba(34,212,153,0.95);">Exporter M3U</button>
+        <button class="btn" onclick="exportM3U()" style="font-size:12px; padding:6px 10px;">Exporter M3U</button>
         <div id="selectionCount" style="font-size:12px; color:#93c5fd; padding:6px 10px;"></div>
         <div id="statusMsg" style="font-size:12px; color:#93c5fd; margin-left:auto;"></div>
     </div>
@@ -174,18 +192,83 @@
 </div>
 
 <div id="playerModal" class="player-modal">
-    <div style="width:82%; max-width:1100px; background:#111; border-radius:12px; overflow:hidden;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:12px 16px; background:#1b1b1b; gap:16px;">
-            <div style="flex:1;">
-                <div id="playerTitle" style="font-weight:bold; margin-bottom:10px;">Lecture vidéo</div>
+    <div style="width:82%; max-width:1100px; background:linear-gradient(135deg, #0b1225, #0f172a); border-radius:16px; overflow:hidden; border:1px solid rgba(59,130,246,0.3);">
+        <!-- Modal Header -->
+        <div style="padding:20px 24px; background:linear-gradient(90deg, #0c1429, #132a4a); border-bottom:1px solid rgba(59,130,246,0.2);">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:250px;">
+                    <h3 id="playerTitle" style="margin:0 0 8px 0; font-size:22px; font-weight:700; color:#dbeafe;">Lecture vidéo</h3>
+                    <div id="playerSubtitle" style="font-size:13px; color:#94a3b8;">Cliquez sur les contrôles ou utilisez les flèches ↔ et PageUp/PageDown</div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:6px; background:rgba(59,130,246,0.15); padding:6px 12px; border-radius:8px; border:1px solid rgba(59,130,246,0.2);">
+                        <span style="font-size:12px; color:#94a3b8;">Favoris:</span>
+                        <strong id="playerFavoriteState" style="color:#60a5fa;">Non</strong>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; background:rgba(59,130,246,0.15); padding:6px 12px; border-radius:8px; border:1px solid rgba(59,130,246,0.2);">
+                        <span style="font-size:12px; color:#94a3b8;" id="playerDuration">00:00 / 00:00</span>
+                    </div>
+                </div>
             </div>
-            <div style="display:flex; gap:8px; align-items:center;">
-                <button id="prevBtn" onclick="playPrevious()" style="background:#333;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;">⏮ Prev</button>
-                <button id="nextBtn" onclick="playNext()" style="background:#333;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;">Next ⏭</button>
-                <button onclick="closePlayer()" style="background:#333;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;">Fermer</button>
+
+            <!-- Edit Section: Albums et Level - Une ligne compacte -->
+            <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 12px; background:rgba(15,23,42,0.8); border:1px solid rgba(148,163,184,0.2); border-radius:10px;">
+                <!-- Albums Horizontal Compact -->
+                <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0;">Albums:</label>
+                <div id="albumCheckboxesContainer" style="display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:center;">
+                </div>
+
+                <!-- Level Horizontal Compact -->
+                <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 0 8px;">Niveau:</label>
+                <select id="levelSelect" style="background:rgba(11,17,36,0.8); color:#e0f2fe; border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer; transition:all 0.2s ease; height:28px;">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                </select>
+                <span id="levelValue" style="font-weight:700; color:#60a5fa; font-size:12px; min-width:15px; text-align:center;">0</span>
+                <!-- Save Button Icon Only - Small -->
+                <button onclick="saveModalCombined()" title="Enregistrer" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:14px; transition:all 0.2s ease; box-shadow:0 2px 6px rgba(59,130,246,0.25); display:flex; align-items:center; justify-content:center; height:28px; width:28px;" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    💾
+                </button>
             </div>
         </div>
-        <video id="mainPlayer" controls autoplay style="width:100%; max-height:75vh; background:black;"></video>
+
+        <!-- Video Player -->
+        <video id="mainPlayer" controls autoplay style="width:100%; max-height:75vh; background:black; display:block;"></video>
+
+        <!-- Modal Footer: Controls -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:linear-gradient(90deg, #0c1429, #132a4a); border-top:1px solid rgba(59,130,246,0.2); gap:6px; flex-wrap:wrap;">
+            <!-- Playback Controls -->
+            <div style="display:flex; gap:4px; align-items:center;">
+                <button id="prevBtn" onclick="playPrevious()" title="Précédent" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ⏮
+                </button>
+                <button onclick="seekBy(-10)" title="-10s" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ◀
+                </button>
+                <button onclick="playOrPause()" id="playPauseBtn" title="Play/Pause" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 7px; border-radius:5px; cursor:pointer; font-weight:700; font-size:12px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ▶
+                </button>
+                <button onclick="seekBy(10)" title="+10s" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ▶️
+                </button>
+                <button id="nextBtn" onclick="playNext()" title="Suivant" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ⏭
+                </button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;">
+                <button id="favoriteModalBtn" onclick="toggleFavoriteModal(currentVideos[currentIndex]?.id, this)" title="Favori" style="background:linear-gradient(135deg, #ec4899, #db2777); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:12px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(236,72,153,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #db2777, #be185d)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #ec4899, #db2777)';this.style.transform='scale(1)'">
+                    ♥
+                </button>
+                <button onclick="closePlayer()" title="Fermer" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ✕
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -217,6 +300,63 @@
         }
     }
 
+    function findIndexByVideoId(id) {
+        if (!currentVideos || currentVideos.length === 0) return -1;
+        return currentVideos.findIndex(v => v.id === id);
+    }
+
+    async function toggleFavoriteModal(videoId, button) {
+        const video = currentVideos.find(v => v.id === videoId);
+        if (!video) return;
+
+        await fetch(`/api/videos/favorite/toggle?id=${videoId}`);
+
+        video.favorite = !video.favorite;
+        button.classList.toggle('favorite-active');
+        document.getElementById('playerFavoriteState').textContent = video.favorite ? 'Oui' : 'Non';
+    }
+
+    async function saveModalCombined() {
+        if (currentIndex < 0 || !currentVideos[currentIndex]) return;
+
+        const video = currentVideos[currentIndex];
+
+        const container = document.getElementById('albumCheckboxesContainer');
+        const selectedAlbums = Array.from(container.querySelectorAll('input[type="checkbox"]'))
+            .filter(cb => cb.checked)
+            .map(cb => cb.value.trim())
+            .filter(Boolean);
+
+        const newLevel = parseInt(document.getElementById('levelSelect').value, 10);
+        const payload = {};
+        if (selectedAlbums.length) payload.albums = selectedAlbums;
+        if (!Number.isNaN(newLevel)) payload.sourceIndex = Math.max(0, Math.min(5, newLevel));
+
+        if (Object.keys(payload).length === 0) return;
+
+        const res = await fetch('/api/videos/' + encodeURIComponent(video.id), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            console.error('Erreur update modal', res.status, await res.text());
+            setStatus('Erreur sauvegarde');
+            return;
+        }
+
+        const updated = await res.json();
+
+        const idx = findIndexByVideoId(updated.id);
+        if (idx >= 0) currentVideos[idx] = updated;
+
+        await loadFavorites();
+        const newIndex = findIndexByVideoId(updated.id);
+        if (newIndex >= 0) openPlayerByIndex(newIndex);
+        setStatus('Modification enregistrée');
+    }
+
     function renderVideos(videos) {
         currentVideos = videos || [];
         currentIndex = -1;
@@ -229,6 +369,8 @@
         currentVideos.forEach((v, index) => {
             const card = document.createElement('div');
             card.className = 'video-card';
+            // expose id for drag & drop ordering
+            card.dataset.id = v.id;
             card.style.position = 'relative';
             card.innerHTML = `
     <input type="checkbox" class="video-checkbox" data-id="${v.id}" style="position:absolute; top:8px; right:8px; width:20px; height:20px; cursor:pointer; z-index:10;" onchange="toggleVideoSelection(${v.id}, this.checked)" />
@@ -237,10 +379,12 @@
     <div class="video-duration">${formatDuration(v.durationMs)}</div>
     <div class="video-info">
         <div class="video-title">${v.title ?? ''}</div>
-        <div class="video-meta">${(v.creator ?? 'Unknown')} ${v.album ? '• ' + v.album : ''}</div>
+        <div class="video-meta">${(v.creator ?? 'Unknown')} ${(v.album) ? '• ' + v.album : ''}</div>
     </div>`;
             container.appendChild(card);
         });
+        // Re-init sortable after rendering
+        initSortable();
     }
 
     async function loadFavorites() {
@@ -321,16 +465,229 @@
         if (!currentVideos || index < 0 || index >= currentVideos.length) return;
         currentIndex = index;
         const video = currentVideos[index];
+        
         document.getElementById('playerTitle').textContent = video.title || 'Lecture vidéo';
+        document.getElementById('playerSubtitle').textContent = `Créateur: ${video.creator || 'Unknown'} • Level: ${video.sourceIndex ?? 'N/A'} • Albums: ${Array.isArray(video.albums) && video.albums.length > 0 ? video.albums.join(', ') : 'Aucun'}`;
+        document.getElementById('playerDuration').textContent = `${formatDuration(video.durationMs)} / ${formatDuration(video.durationMs || 0)}`;
+        document.getElementById('playerFavoriteState').textContent = video.favorite ? 'Oui' : 'Non';
+
         document.getElementById('mainPlayer').src = video.url || '';
         document.getElementById('playerModal').style.display = 'flex';
+
+        // Build album checkboxes
+        const videoAlbums = Array.isArray(video.albums) ? video.albums : [];
+        const container = document.getElementById('albumCheckboxesContainer');
+        container.innerHTML = '';
+
+        // Get all albums from API or from filter if available
+        // Since we don't have a global album list in favorites, we'll create checkboxes dynamically
+        // For now, we'll use empty container and fetch albums if needed
+        
+        // For favorites page, we need to get the list of all albums
+        const allAlbums = getAllAlbums();
+        if (allAlbums && allAlbums.length > 0) {
+            allAlbums.forEach(album => {
+                const label = document.createElement('label');
+                label.style.display = 'flex';
+                label.style.alignItems = 'center';
+                label.style.gap = '4px';
+                label.style.cursor = 'pointer';
+                label.style.color = '#e0f2fe';
+                label.style.fontSize = '11px';
+                label.style.padding = '3px 8px';
+                label.style.background = 'rgba(59,130,246,0.25)';
+                label.style.border = '1px solid rgba(59,130,246,0.4)';
+                label.style.borderRadius = '5px';
+                label.style.whiteSpace = 'nowrap';
+                label.style.transition = 'all 0.2s ease';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = album;
+                checkbox.checked = videoAlbums.includes(album);
+                checkbox.style.cursor = 'pointer';
+                checkbox.style.width = '14px';
+                checkbox.style.height = '14px';
+
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(album));
+                label.addEventListener('mouseenter', () => {
+                    label.style.background = 'rgba(59,130,246,0.4)';
+                    label.style.borderColor = 'rgba(59,130,246,0.6)';
+                });
+                label.addEventListener('mouseleave', () => {
+                    label.style.background = 'rgba(59,130,246,0.25)';
+                    label.style.borderColor = 'rgba(59,130,246,0.4)';
+                });
+                container.appendChild(label);
+            });
+        }
+
+        const level = (video.sourceIndex != null && video.sourceIndex >= 1 && video.sourceIndex <= 5) ? video.sourceIndex : 1;
+        document.getElementById('levelSelect').value = level;
+        document.getElementById('levelValue').textContent = video.sourceIndex ?? 0;
     }
 
-    function closePlayer() { const p = document.getElementById('mainPlayer'); p.pause(); p.src=''; document.getElementById('playerModal').style.display='none'; }
-    function playNext() { if (!currentVideos || currentVideos.length===0) return; const next=(currentIndex+1)%currentVideos.length; openPlayerByIndex(next); }
-    function playPrevious() { if (!currentVideos || currentVideos.length===0) return; const prev=(currentIndex-1+currentVideos.length)%currentVideos.length; openPlayerByIndex(prev); }
+    function getAllAlbums() {
+        // Extract unique albums from current videos
+        const albums = new Set();
+        currentVideos.forEach(v => {
+            if (Array.isArray(v.albums)) {
+                v.albums.forEach(a => albums.add(a));
+            }
+        });
+        return Array.from(albums).sort();
+    }
 
-    window.addEventListener('load', async () => { await loadFavorites(); });
+    function seekBy(seconds) {
+        const player = document.getElementById('mainPlayer');
+        if (!player || isNaN(player.currentTime)) return;
+        const target = Math.max(0, Math.min(player.duration || Infinity, player.currentTime + seconds));
+        player.currentTime = target;
+        setStatus(`Position vidéo : ${Math.round(target)}s`);
+    }
+
+    function playOrPause() {
+        const player = document.getElementById('mainPlayer');
+        if (!player) return;
+        if (player.paused || player.ended) {
+            player.play();
+        } else {
+            player.pause();
+        }
+    }
+
+    function initPlayerEvents() {
+        const player = document.getElementById('mainPlayer');
+
+        player.addEventListener('ended', () => {
+            if (currentIndex < currentVideos.length - 1) {
+                playNext();
+            }
+        });
+
+        player.addEventListener('play', () => {
+            const btn = document.getElementById('playPauseBtn');
+            if (btn) btn.textContent = '⏸';
+        });
+
+        player.addEventListener('pause', () => {
+            const btn = document.getElementById('playPauseBtn');
+            if (btn) btn.textContent = '▶';
+        });
+    }
+
+    function closePlayer() { 
+        const p = document.getElementById('mainPlayer'); 
+        p.pause(); 
+        p.src=''; 
+        document.getElementById('playerModal').style.display='none'; 
+        currentIndex = -1;
+    }
+    
+    function playNext() { 
+        if (!currentVideos || currentVideos.length===0) return; 
+        const next=(currentIndex+1)%currentVideos.length; 
+        openPlayerByIndex(next); 
+    }
+    
+    function playPrevious() { 
+        if (!currentVideos || currentVideos.length===0) return; 
+        const prev=(currentIndex-1+currentVideos.length)%currentVideos.length; 
+        openPlayerByIndex(prev); 
+    }
+
+    async function checkAuthentication() {
+        try {
+            const res = await fetch('/api/config/auth/check');
+            const isAuthenticated = await res.json();
+            if (!isAuthenticated) {
+                window.location.href = '/login';
+            }
+        } catch (e) {
+            console.error('Erreur vérification auth:', e);
+            window.location.href = '/login';
+        }
+    }
+
+    async function logout() {
+        if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+            try {
+                await fetch('/api/config/logout');
+                window.location.href = '/login';
+            } catch (e) {
+                console.error('Erreur logout:', e);
+            }
+        }
+    }
+
+    window.addEventListener('load', async () => { 
+        await checkAuthentication();
+        initPlayerEvents();
+        await loadFavorites(); 
+    });
+
+    // Keyboard shortcuts for player modal
+    document.addEventListener('keydown', (e) => {
+        const modalVisible = document.getElementById('playerModal').style.display === 'flex';
+        if (!modalVisible) return;
+
+        if (e.key === 'PageDown') {
+            playNext();
+        } else if (e.key === 'PageUp') {
+            playPrevious();
+        } else if (e.key === 'ArrowRight') {
+            seekBy(10);
+        } else if (e.key === 'ArrowLeft') {
+            seekBy(-10);
+        } else if (e.key === 'Escape') {
+            closePlayer();
+        }
+    });
+
+    // Initialize SortableJS for drag & drop reordering
+    function initSortable() {
+        const el = document.getElementById('videos');
+        if (!el) return;
+        // destroy previous instance if any
+        if (window._sortableInstance && typeof window._sortableInstance.destroy === 'function') {
+            try { window._sortableInstance.destroy(); } catch (e) { /* ignore */ }
+        }
+
+        // create new sortable
+        window._sortableInstance = Sortable.create(el, {
+            animation: 150,
+            handle: '.video-card',
+            onEnd: async function () {
+                const ids = Array.from(el.children).map(ch => Number(ch.dataset.id)).filter(n => !Number.isNaN(n));
+                try {
+                    const res = await fetch('/api/videos/favorites/reorder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(ids)
+                    });
+                    if (!res.ok) {
+                        setStatus('Erreur enregistrement ordre');
+                        console.error(await res.text());
+                    } else {
+                        setStatus('Ordre enregistré');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    setStatus('Erreur enregistrement ordre');
+                }
+            }
+        });
+    }
+
+    // Load SortableJS from CDN (if not already loaded)
+    (function loadSortableOnce(){
+        if (window.Sortable) return;
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js';
+        s.onload = () => { initSortable(); };
+        document.head.appendChild(s);
+    })();
 </script>
 </body>
 </html>

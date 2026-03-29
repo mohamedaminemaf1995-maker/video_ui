@@ -1,6 +1,8 @@
 package com.local.ar44.service;
 
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +13,7 @@ import java.nio.file.Paths;
 
 @Service
 public class ThumbnailStorageService {
+    private static final Logger log = LoggerFactory.getLogger(ThumbnailStorageService.class);
 
     private final Path thumbsDir;
 
@@ -23,6 +26,7 @@ public class ThumbnailStorageService {
     @PostConstruct
     public void init() throws IOException {
         Files.createDirectories(thumbsDir);
+        log.info("[THUMBNAILS] Répertoire des thumbnails initialisé: {}", thumbsDir.toAbsolutePath());
     }
 
     public Path getThumbPath(Long videoId) {
@@ -30,11 +34,16 @@ public class ThumbnailStorageService {
     }
 
     public Path getThumbPath(String videoFileName) {
-        return thumbsDir.resolve(toThumbnailName(videoFileName));
+        String thumbName = toThumbnailName(videoFileName);
+        Path result = thumbsDir.resolve(thumbName);
+        log.debug("[THUMBNAILS] Calcul du chemin: VideoFileName={} -> ThumbName={} -> FullPath={}", 
+                videoFileName, thumbName, result.toAbsolutePath());
+        return result;
     }
 
     public String toThumbnailName(String videoFileName) {
         if (videoFileName == null || videoFileName.isBlank()) {
+            log.warn("[THUMBNAILS] ⚠️  videoFileName est vide, throwing exception");
             throw new IllegalArgumentException("videoFileName ne doit pas être vide");
         }
 
@@ -44,8 +53,12 @@ public class ThumbnailStorageService {
         String baseName = (dotIndex > 0)
                 ? cleanName.substring(0, dotIndex)
                 : cleanName;
-
-        return baseName + ".jpg";
+        
+        String result = baseName + ".jpg";
+        log.debug("[THUMBNAILS] toThumbnailName: {} -> cleanName={} -> baseName={} -> result={}",
+                videoFileName, cleanName, baseName, result);
+        
+        return result;
     }
 
     public boolean exists(String videoFileName) {

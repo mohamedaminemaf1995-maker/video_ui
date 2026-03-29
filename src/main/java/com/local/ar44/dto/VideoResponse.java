@@ -14,6 +14,7 @@ public class VideoResponse {
     private List<String> albums;
     private Integer sourceIndex;
     private Boolean favorite;
+    private Integer favoriteOrder; // nouvellement exposé au front-end
 
     // getters/setters
 }

@@ -354,16 +354,21 @@
             currentVideos.forEach((v, index) => {
                 const card = document.createElement('div');
                 card.className = 'video-card';
+                
+                const thumbUrl = `/api/videos/thumbnail?id=${v.id}`;
+                console.log(`[THUMBNAIL] Rendering video ${v.id}: ${v.title} → URL: ${thumbUrl}, FileName: ${v.fileName}`);
 
                 card.innerHTML = `
     <div style="position:relative;">
         <input type="checkbox" class="video-checkbox" data-id="${v.id}" style="position:absolute; top:8px; right:8px; width:20px; height:20px; cursor:pointer; z-index:10;" onchange="toggleVideoSelection(${v.id}, this.checked)" />
         
         <img
-            src="/api/videos/thumbnail?id=${v.id}"
+            src="${thumbUrl}"
             class="video-player"
             loading="lazy"
             onclick="openPlayerByIndex(${index})"
+            onerror="console.error('[THUMBNAIL-ERROR] Erreur chargement thumbnail pour ID ${v.id}: ${thumbUrl}')"
+            onload="console.log('[THUMBNAIL-OK] Thumbnail chargée avec succès pour ID ${v.id}')"
         />
 
         <!-- FAVORITE -->
@@ -398,6 +403,17 @@
 
             element.classList.toggle('favorite-active');
         }
+
+        async function toggleFavoriteModal(videoId, button) {
+            const video = currentVideos.find(v => v.id === videoId);
+            if (!video) return;
+
+            await fetch(`/api/videos/favorite/toggle?id=${videoId}`);
+
+            video.favorite = !video.favorite;
+            button.classList.toggle('favorite-active');
+            document.getElementById('playerFavoriteState').textContent = video.favorite ? 'Oui' : 'Non';
+        }
         async function loadVideos() {
             try {
                 setStatus('Chargement des vidéos...');
@@ -411,7 +427,8 @@
                 if (album.length > 0) {
                     videos = videos.filter(v => {
                         const videoAlbums = Array.isArray(v.albums) ? v.albums : [];
-                        return videoAlbums.some(va => album.includes(va));
+                        // Intersection : tous les albums sélectionnés doivent être présents dans la vidéo
+                        return album.every(selected => videoAlbums.includes(selected));
                     });
                 }
 
@@ -697,11 +714,11 @@
             });
 
             player.addEventListener('play', () => {
-                document.getElementById('playPauseBtn').textContent = 'Pause';
+                document.getElementById('playPauseBtn').textContent = '⏸';
             });
 
             player.addEventListener('pause', () => {
-                document.getElementById('playPauseBtn').textContent = 'Play';
+                document.getElementById('playPauseBtn').textContent = '▶';
             });
         }
 
@@ -715,16 +732,6 @@
             }
         }
 
-        function openInVLC() {
-            const video = currentVideos[currentIndex];
-            if (!video || !video.url) {
-                setStatus('Aucune vidéo chargée');
-                return;
-            }
-            // Using vlc:// protocol handler (needs user VLC installation & registration)
-            const vlcUrl = `vlc://${encodeURIComponent(video.url)}`;
-            window.open(vlcUrl, '_blank');
-        }
         function playPrevious() {
             if (!currentVideos || currentVideos.length === 0) return;
             const prevIndex = (currentIndex - 1 + currentVideos.length) % currentVideos.length;
@@ -739,7 +746,32 @@
             nextBtn.disabled = currentIndex >= currentVideos.length - 1;
         }
 
+        async function checkAuthentication() {
+            try {
+                const res = await fetch('/api/config/auth/check');
+                const isAuthenticated = await res.json();
+                if (!isAuthenticated) {
+                    window.location.href = '/login';
+                }
+            } catch (e) {
+                console.error('Erreur vérification auth:', e);
+                window.location.href = '/login';
+            }
+        }
+
+        async function logout() {
+            if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+                try {
+                    await fetch('/api/config/logout');
+                    window.location.href = '/login';
+                } catch (e) {
+                    console.error('Erreur logout:', e);
+                }
+            }
+        }
+
         window.addEventListener('load', async () => {
+            await checkAuthentication();
             initPlayerEvents();
             await loadHost();
             await loadAlbums();
@@ -796,21 +828,35 @@
                 const label = document.createElement('label');
                 label.style.display = 'flex';
                 label.style.alignItems = 'center';
-                label.style.gap = '6px';
+                label.style.gap = '4px';
                 label.style.cursor = 'pointer';
-                label.style.color = '#fff';
-                label.style.fontSize = '14px';
+                label.style.color = '#e0f2fe';
+                label.style.fontSize = '11px';
+                label.style.padding = '3px 8px';
+                label.style.background = 'rgba(59,130,246,0.25)';
+                label.style.border = '1px solid rgba(59,130,246,0.4)';
+                label.style.borderRadius = '5px';
+                label.style.whiteSpace = 'nowrap';
+                label.style.transition = 'all 0.2s ease';
 
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.value = opt.value;
                 checkbox.checked = videoAlbums.includes(opt.value);
                 checkbox.style.cursor = 'pointer';
-                checkbox.style.width = '16px';
-                checkbox.style.height = '16px';
+                checkbox.style.width = '14px';
+                checkbox.style.height = '14px';
 
                 label.appendChild(checkbox);
                 label.appendChild(document.createTextNode(opt.value));
+                label.addEventListener('mouseenter', () => {
+                    label.style.background = 'rgba(59,130,246,0.4)';
+                    label.style.borderColor = 'rgba(59,130,246,0.6)';
+                });
+                label.addEventListener('mouseleave', () => {
+                    label.style.background = 'rgba(59,130,246,0.25)';
+                    label.style.borderColor = 'rgba(59,130,246,0.4)';
+                });
                 container.appendChild(label);
             });
 
@@ -820,79 +866,59 @@
 
             updatePlayerNavButtons();
         }
-        async function saveLevelFromModal() {
-            if (currentIndex < 0 || !currentVideos[currentIndex]) return;
 
-            const video = currentVideos[currentIndex];
-            const newLevel = parseInt(document.getElementById('levelSelect').value, 10);
-            if (Number.isNaN(newLevel)) return;
-
-            await fetch(`/api/videos/source-index/set?id=${video.id}&sourceIndex=${newLevel}`);
-
-            video.sourceIndex = newLevel;
-            document.getElementById('levelValue').textContent = newLevel;
-
-            await loadVideos();
-            openPlayerByIndex(currentIndex);
+        // helper: find index of a video in currentVideos by id
+        function findIndexByVideoId(id) {
+            if (!currentVideos || currentVideos.length === 0) return -1;
+            return currentVideos.findIndex(v => v.id === id);
         }
 
-        async function saveAlbumFromModal() {
+        // Unified save: send albums (array) and sourceIndex together via PUT /api/videos/{id}
+        async function saveModalCombined() {
             if (currentIndex < 0 || !currentVideos[currentIndex]) return;
 
             const video = currentVideos[currentIndex];
+
             const container = document.getElementById('albumCheckboxesContainer');
-            const selectedAlbums = Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
+            const selectedAlbums = Array.from(container.querySelectorAll('input[type="checkbox"]'))
+                .filter(cb => cb.checked)
                 .map(cb => cb.value.trim())
                 .filter(Boolean);
 
-            if (selectedAlbums.length === 0) {
-                // If no albums selected, we can set empty or send notification
+            const newLevel = parseInt(document.getElementById('levelSelect').value, 10);
+            const payload = {};
+            if (selectedAlbums.length) payload.albums = selectedAlbums;
+            if (!Number.isNaN(newLevel)) payload.sourceIndex = Math.max(0, Math.min(5, newLevel));
+
+            // If nothing to update, do nothing
+            if (Object.keys(payload).length === 0) return;
+
+            const res = await fetch('/api/videos/' + encodeURIComponent(video.id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                console.error('Erreur update modal', res.status, await res.text());
+                setStatus('Erreur sauvegarde');
                 return;
             }
 
-            const newAlbum = selectedAlbums.join(', ');
+            const updated = await res.json();
 
-            await fetch(`/api/videos/album/set?id=${video.id}&album=${encodeURIComponent(newAlbum)}`);
-
-            video.albums = selectedAlbums;
+            // update local state
+            // try to find and replace in currentVideos
+            const idx = findIndexByVideoId(updated.id);
+            if (idx >= 0) currentVideos[idx] = updated;
 
             await loadVideos();
-            openPlayerByIndex(currentIndex);
+            // re-open modal positioned on same video if still present
+            const newIndex = findIndexByVideoId(updated.id);
+            if (newIndex >= 0) openPlayerByIndex(newIndex);
+            setStatus('Modification enregistrée');
         }
-        async function increaseLevel() {
-            if (currentIndex < 0 || !currentVideos[currentIndex]) return;
 
-            const video = currentVideos[currentIndex];
-            const videoId = video.id;
-
-            await fetch(`/api/videos/source-index/increase?id=${videoId}`);
-            await loadVideos();
-
-            const newIndex = findIndexByVideoId(videoId);
-
-            if (newIndex >= 0) {
-                openPlayerByIndex(newIndex);
-            } else {
-                closePlayer();
-            }
-        }
-        async function decreaseLevel() {
-            if (currentIndex < 0 || !currentVideos[currentIndex]) return;
-
-            const video = currentVideos[currentIndex];
-            const videoId = video.id;
-
-            await fetch(`/api/videos/source-index/decrease?id=${videoId}`);
-            await loadVideos();
-
-            const newIndex = findIndexByVideoId(videoId);
-
-            if (newIndex >= 0) {
-                openPlayerByIndex(newIndex);
-            } else {
-                closePlayer();
-            }
-        }
     </script>
 </head>
 <body>
@@ -903,7 +929,10 @@
                 <h2 style="margin:0; color:#bfdbfe;">Arcad</h2>
                 <div style="font-size:12px; color:#94a3b8; margin-top:2px;">Dashboard vidéo</div>
             </div>
-            <span style="color:#22d3ee; font-weight:bold;">v1</span>
+            <div style="display:flex; gap:6px; align-items:center;">
+                <span style="color:#22d3ee; font-weight:bold;">v1</span>
+                <button onclick="logout()" title="Déconnexion" style="background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s ease;" onmouseover="this.style.background='rgba(239,68,68,0.3)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'">Déco</button>
+            </div>
         </div>
 
         <!-- Add a button to open the favorites page -->
@@ -1003,77 +1032,83 @@
     </main>
 </div>
 <div id="playerModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center;">
-    <div style="width:82%; max-width:1100px; background:#111; border-radius:12px; overflow:hidden;">
-        <div style="padding:14px 16px; background: linear-gradient(90deg, #0f172a, #111827); border-bottom: 1px solid rgba(59,130,246,0.3);">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                <div>
-                    <h3 id="playerTitle" style="margin:0; font-size:20px; color:#dbeafe;">Lecture vidéo</h3>
-                    <div id="playerSubtitle" style="margin-top:4px; font-size:13px; color:#94a3b8;">Cliquez sur les contrôles ou utilisez les flèches ↔ et PageUp/PageDown</div>
+    <div style="width:82%; max-width:1100px; background:linear-gradient(135deg, #0b1225, #0f172a); border-radius:16px; overflow:hidden; border:1px solid rgba(59,130,246,0.3);">
+        <!-- Modal Header -->
+        <div style="padding:20px 24px; background:linear-gradient(90deg, #0c1429, #132a4a); border-bottom:1px solid rgba(59,130,246,0.2);">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:250px;">
+                    <h3 id="playerTitle" style="margin:0 0 8px 0; font-size:22px; font-weight:700; color:#dbeafe;">Lecture vidéo</h3>
+                    <div id="playerSubtitle" style="font-size:13px; color:#94a3b8;">Cliquez sur les contrôles ou utilisez les flèches ↔ et PageUp/PageDown</div>
                 </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <span style="font-size:12px; color:#93c5fd; background:rgba(59,130,246,0.18); padding:4px 8px; border-radius:8px;">Favoris : <strong style="color:#fff;" id="playerFavoriteState">-</strong></span>
-                    <span style="font-size:12px; color:#93c5fd; background:rgba(56,189,248,0.15); padding:4px 8px; border-radius:8px;" id="playerDuration">00:00 / 00:00</span>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:6px; background:rgba(59,130,246,0.15); padding:6px 12px; border-radius:8px; border:1px solid rgba(59,130,246,0.2);">
+                        <span style="font-size:12px; color:#94a3b8;">Favoris:</span>
+                        <strong id="playerFavoriteState" style="color:#60a5fa;">Non</strong>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; background:rgba(59,130,246,0.15); padding:6px 12px; border-radius:8px; border:1px solid rgba(59,130,246,0.2);">
+                        <span style="font-size:12px; color:#94a3b8;" id="playerDuration">00:00 / 00:00</span>
+                    </div>
                 </div>
             </div>
 
-            <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <div id="albumCheckboxesContainer" style="display:flex; flex-direction:row; flex-wrap:wrap; gap:8px; padding:10px; background:#0b1124; border:1px solid rgba(148,163,184,0.2); border-radius:10px; min-width:180px;">
+            <!-- Edit Section: Albums et Level - Une ligne compacte -->
+            <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 12px; background:rgba(15,23,42,0.8); border:1px solid rgba(148,163,184,0.2); border-radius:10px;">
+                <!-- Albums Horizontal Compact -->
+                <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0;">Albums:</label>
+                <div id="albumCheckboxesContainer" style="display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:center;">
                 </div>
 
-                <button onclick="saveAlbumFromModal()"
-                        title="Sauvegarder l'album"
-                        style="background:#34d399; color:white; border:none; width:38px; height:38px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:center; margin-top:8px;">
+                <!-- Level Horizontal Compact -->
+                <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 0 8px;">Niveau:</label>
+                <select id="levelSelect" style="background:rgba(11,17,36,0.8); color:#e0f2fe; border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer; transition:all 0.2s ease; height:28px;">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                </select>
+                <span id="levelValue" style="font-weight:700; color:#60a5fa; font-size:12px; min-width:15px; text-align:center;">0</span>
+                <!-- Save Button Icon Only - Small -->
+                <button onclick="saveModalCombined()" title="Enregistrer" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:14px; transition:all 0.2s ease; box-shadow:0 2px 6px rgba(59,130,246,0.25); display:flex; align-items:center; justify-content:center; height:28px; width:28px;" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
                     💾
                 </button>
-
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="color:#aaa;">Level</span>
-                    <select id="levelSelect" style="background:#222; color:white; border:1px solid #333; border-radius:8px; padding:8px 10px;">
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5">5</option>
-                    </select>
-                    <button onclick="saveLevelFromModal()"
-                            style="background:#22c55e; color:white; border:none; width:34px; height:34px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-                        💾
-                    </button>
-                    <span id="levelValue" style="min-width:30px; text-align:center; font-weight:bold; color:#fff;">0</span>
-                </div>
             </div>
         </div>
 
-        <video id="mainPlayer" controls autoplay style="width:100%; max-height:75vh; background:black;"></video>
+        <!-- Video Player -->
+        <video id="mainPlayer" controls autoplay style="width:100%; max-height:75vh; background:black; display:block;"></video>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#111827; gap:8px;">
-            <div style="display:flex; gap:6px; align-items:center;">
-                <button id="prevBtn" onclick="playPrevious()" style="background:rgba(37,99,235,0.9); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
-                    ⏮ Prev
+        <!-- Modal Footer: Controls -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:linear-gradient(90deg, #0c1429, #132a4a); border-top:1px solid rgba(59,130,246,0.2); gap:6px; flex-wrap:wrap;">
+            <!-- Playback Controls -->
+            <div style="display:flex; gap:4px; align-items:center;">
+                <button id="prevBtn" onclick="playPrevious()" title="Précédent" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ⏮
                 </button>
-                <button onclick="seekBy(-10)" style="background:rgba(14,165,233,0.9); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
-                    -10s
+                <button onclick="seekBy(-10)" title="-10s" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ◀
                 </button>
-                <button onclick="playOrPause()" id="playPauseBtn" style="background:rgba(59,130,246,0.95); color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:700;">
-                    Pause
+                <button onclick="playOrPause()" id="playPauseBtn" title="Play/Pause" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 7px; border-radius:5px; cursor:pointer; font-weight:700; font-size:12px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ▶
                 </button>
-                <button onclick="seekBy(10)" style="background:rgba(14,165,233,0.9); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
-                    +10s
+                <button onclick="seekBy(10)" title="+10s" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ▶️
                 </button>
-                <button id="nextBtn" onclick="playNext()" style="background:rgba(37,99,235,0.9); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
-                    Next ⏭
+                <button id="nextBtn" onclick="playNext()" title="Suivant" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ⏭
                 </button>
             </div>
 
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button onclick="openDeleteConfirm()" style="background:#dc2626; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
-                    Supprimer
+            <!-- Action Buttons -->
+            <div style="display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;">
+                <button id="favoriteModalBtn" onclick="toggleFavoriteModal(currentVideos[currentIndex]?.id, this)" title="Favori" style="background:linear-gradient(135deg, #ec4899, #db2777); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:12px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(236,72,153,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #db2777, #be185d)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #ec4899, #db2777)';this.style.transform='scale(1)'">
+                    ♥
                 </button>
-                <button onclick="openInVLC()" style="background:rgba(14,165,233,0.9); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
-                    Ouvrir dans VLC
+                <button onclick="openDeleteConfirm()" title="Supprimer" style="background:linear-gradient(135deg, #ef4444, #dc2626); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:12px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(239,68,68,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #dc2626, #b91c1c)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #ef4444, #dc2626)';this.style.transform='scale(1)'">
+                    🗑
                 </button>
-                <button onclick="closePlayer()" style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
-                    Fermer
+                <button onclick="closePlayer()" title="Fermer" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    ✕
                 </button>
             </div>
         </div>
@@ -1081,11 +1116,16 @@
 </div>
 
 <div id="confirmModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:10000; align-items:center; justify-content:center;">
-    <div style="width:90%; max-width:420px; background:#1b1b1b; border-radius:12px; padding:16px; border:1px solid #444;">
-        <p id="confirmText" style="color:#eee; margin-bottom:16px;">Confirmer la suppression ?</p>
-        <div style="display:flex; justify-content:flex-end; gap:8px;">
-            <button onclick="closeDeleteConfirm()" style="background:#333; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">Annuler</button>
-            <button onclick="confirmDelete()" style="background:#dc2626; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">Supprimer</button>
+    <div style="width:90%; max-width:420px; background:linear-gradient(135deg, #0b1225, #0f172a); border-radius:14px; padding:24px; border:1px solid rgba(59,130,246,0.3); box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+        <h3 style="margin:0 0 12px 0; font-size:18px; font-weight:700; color:#dbeafe;">Confirmer la suppression</h3>
+        <p id="confirmText" style="color:#e0f2fe; margin:0 0 20px 0; font-size:14px; line-height:1.5;">Confirmer la suppression ?</p>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button onclick="closeDeleteConfirm()" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; transition:all 0.2s ease; box-shadow:0 2px 8px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='translateY(0)'">
+                Annuler
+            </button>
+            <button onclick="confirmDelete()" style="background:linear-gradient(135deg, #ef4444, #dc2626); color:white; border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; transition:all 0.2s ease; box-shadow:0 2px 8px rgba(239,68,68,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #dc2626, #b91c1c)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='linear-gradient(135deg, #ef4444, #dc2626)';this.style.transform='translateY(0)'">
+                Supprimer
+            </button>
         </div>
     </div>
 </div>

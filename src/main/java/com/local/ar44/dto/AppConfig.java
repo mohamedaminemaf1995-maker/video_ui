@@ -14,4 +14,6 @@ public class AppConfig {
     private Long id;
 
     private String mediaHost;
+    private String username;
+    private String password;
 }

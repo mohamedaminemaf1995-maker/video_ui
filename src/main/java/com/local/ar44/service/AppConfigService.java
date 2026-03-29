@@ -32,4 +32,36 @@ public class AppConfigService {
 
         return host;
     }
+
+    public boolean login(String username, String password) {
+        return repository.findAll()
+                .stream()
+                .findFirst()
+                .map(config -> {
+                    String storedUser = config.getUsername();
+                    String storedPass = config.getPassword();
+                    return username.equals(storedUser) && password.equals(storedPass);
+                })
+                .orElse(false);
+    }
+
+    public void setCredentials(String username, String password) {
+        AppConfig config = repository.findAll()
+                .stream()
+                .findFirst()
+                .orElse(new AppConfig());
+
+        config.setUsername(username);
+        config.setPassword(password);
+        repository.save(config);
+    }
+
+    public boolean hasCredentials() {
+        return repository.findAll()
+                .stream()
+                .findFirst()
+                .map(config -> config.getUsername() != null && !config.getUsername().isEmpty()
+                        && config.getPassword() != null && !config.getPassword().isEmpty())
+                .orElse(false);
+    }
 }

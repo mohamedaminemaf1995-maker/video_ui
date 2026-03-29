@@ -3,6 +3,7 @@ package com.local.ar44.controller;
 import com.local.ar44.dto.Album;
 import com.local.ar44.dto.AlbumStats;
 import com.local.ar44.dto.AppConfig;
+import com.local.ar44.dto.UpdateVideoRequest;
 import com.local.ar44.dto.Video;
 import com.local.ar44.dto.VideoResponse;
 import com.local.ar44.repo.AlbumRepository;
@@ -10,11 +11,10 @@ import com.local.ar44.repo.AppConfigRepository;
 import com.local.ar44.repo.VideoRepository;
 import com.local.ar44.service.ThumbnailStorageService;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.core.io.FileSystemResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
-import org.springframework.http.CacheControl;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,13 +22,13 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/videos")
 public class VideoController {
+    private static final Logger log = LoggerFactory.getLogger(VideoController.class);
 
     private final VideoRepository videoRepository;
     private final AppConfigRepository appConfigRepository;
@@ -88,6 +88,12 @@ public class VideoController {
         response.setFavorite(video.getFavorite());
         response.setSourceIndex(video.getSourceIndex());
         response.setUrl(buildUrl(host, fileName));
+        response.setFavoriteOrder(video.getFavoriteOrder());
+        
+        // 🔗 Log pour les URLs des thumbnails
+        String thumbUrl = "/api/videos/thumbnail?id=" + video.getId();
+        log.debug("[THUMBNAIL-URL] ID: {}, FileName: {}, ThumbURL: {}", 
+                video.getId(), fileName, thumbUrl);
 
         return response;
     }
@@ -104,6 +110,20 @@ public class VideoController {
                     video.getAlbums().add(a);
                 }
             }
+        }
+    }
+
+    // new overload to accept a list of album names
+    private void assignAlbumsToVideo(Video video, List<String> albums) {
+        video.getAlbums().clear();
+        if (albums == null) return;
+        for (String name : albums) {
+            if (name == null) continue;
+            String trimmed = name.trim();
+            if (trimmed.isEmpty()) continue;
+            Album a = albumRepository.findByName(trimmed)
+                    .orElseGet(() -> albumRepository.save(new Album(trimmed)));
+            video.getAlbums().add(a);
         }
     }
 
@@ -217,13 +237,34 @@ public class VideoController {
             @RequestParam Long id,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String creator,
-            @RequestParam(required = false) String album
+            @RequestParam(required = false) String album,
+            @RequestParam(required = false) Integer sourceIndex
     ) {
         Video v = videoRepository.findById(id).orElseThrow();
 
         if (title != null) v.setTitle(title);
         if (creator != null) v.setCreator(creator);
         if (album != null) assignAlbumsToVideo(v, album);
+        if (sourceIndex != null) {
+            int requested = Math.max(0, Math.min(5, sourceIndex));
+            v.setSourceIndex(requested);
+        }
+
+        return videoRepository.save(v);
+    }
+
+    // New RESTful update using JSON body
+    @PutMapping("/{id}")
+    public Video updateVideoPut(@PathVariable Long id, @RequestBody UpdateVideoRequest req) {
+        Video v = videoRepository.findById(id).orElseThrow();
+
+        if (req.getTitle() != null) v.setTitle(req.getTitle());
+        if (req.getCreator() != null) v.setCreator(req.getCreator());
+        if (req.getAlbums() != null) assignAlbumsToVideo(v, req.getAlbums());
+        if (req.getSourceIndex() != null) {
+            int requested = Math.max(0, Math.min(5, req.getSourceIndex()));
+            v.setSourceIndex(requested);
+        }
 
         return videoRepository.save(v);
     }
@@ -295,11 +336,15 @@ public class VideoController {
         Path path = thumbnailStorageService.getThumbPath(video.getFileName());
 
         if (!Files.exists(path)) {
+            log.warn("[THUMBNAIL-MISS] Thumbnail introuvable pour vidéo:");
+            log.warn("  - ID: {}", video.getId());
+            log.warn("  - FileName: {}", video.getFileName());
+            log.warn("  - Title: {}", video.getTitle());
+            log.warn("  - Chemin recherché: {}", path.toAbsolutePath());
             return ResponseEntity.notFound().build();
         }
 
         Resource resource = new UrlResource(path.toUri());
-
         return ResponseEntity.ok()
                 .header("Content-Type", "image/jpeg")
                 .body(resource);
@@ -313,8 +358,13 @@ public class VideoController {
         v.setFavorite(nowFav);
         if (nowFav) {
             v.setFavoriteAt(LocalDateTime.now());
+            // assign an order at the end
+            Optional<Video> top = videoRepository.findTopByFavoriteTrueOrderByFavoriteOrderDesc();
+            int nextOrder = top.map(tv -> tv.getFavoriteOrder() == null ? 1 : tv.getFavoriteOrder() + 1).orElse(1);
+            v.setFavoriteOrder(nextOrder);
         } else {
             v.setFavoriteAt(null);
+            v.setFavoriteOrder(null);
         }
 
         videoRepository.save(v);
@@ -326,9 +376,44 @@ public class VideoController {
     public List<VideoResponse> getFavorites(HttpSession session) {
         String host = resolveHost(session);
 
-        return videoRepository.findByFavoriteTrueOrderByFavoriteAtDesc()
+        return videoRepository.findFavoritesOrdered()
                 .stream()
                 .map(v -> toResponse(v, host))
                 .toList();
+    }
+
+    @PostMapping("/favorites/reorder")
+    public String reorderFavorites(@RequestBody List<Long> orderedIds) {
+        if (orderedIds == null) {
+            throw new IllegalArgumentException("orderedIds is required");
+        }
+
+        List<Video> currentFavs = videoRepository.findByFavoriteTrue();
+        Set<Long> currentFavIds = currentFavs.stream().map(Video::getId).collect(Collectors.toSet());
+
+        List<Video> toSave = new ArrayList<>();
+
+        int order = 1;
+        for (Long id : orderedIds) {
+            Video v = videoRepository.findById(id).orElseThrow();
+            v.setFavorite(true);
+            v.setFavoriteAt(LocalDateTime.now());
+            v.setFavoriteOrder(order++);
+            toSave.add(v);
+            currentFavIds.remove(id);
+        }
+
+        // any remaining currently-favorited videos that were not in the new order -> unfavorite
+        for (Long remainingId : currentFavIds) {
+            Video v = videoRepository.findById(remainingId).orElseThrow();
+            v.setFavorite(false);
+            v.setFavoriteAt(null);
+            v.setFavoriteOrder(null);
+            toSave.add(v);
+        }
+
+        videoRepository.saveAll(toSave);
+
+        return "Favorites reordered";
     }
 }
