@@ -381,13 +381,15 @@
             <button class="nav-chip" onclick="location.href='/'">Bibliothèque</button>
             <button class="nav-chip" onclick="location.href='/favorites'">Favoris</button>
             <button class="nav-chip active" onclick="location.href='/recently'">Récemment vus</button>
+            <button class="nav-chip" onclick="location.href='/stats'">Statistiques</button>
         </div>
     </div>
     <div class="container">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
             <button class="btn-secondary" onclick="location.href='/'">Bibliothèque</button>
             <button class="btn-secondary" onclick="location.href='/favorites'">Favoris</button>
-            <button class="btn-secondary" onclick="location.href='/recently'" style="margin-left:auto;">Récemment vus</button>
+            <button class="btn-secondary" onclick="location.href='/recently'">Récemment vus</button>
+            <button class="btn-secondary" onclick="location.href='/stats'" style="margin-left:auto;">Statistiques</button>
         </div>
         <div class="list-controls">
             <div id="videoCount" style="margin-bottom:0;color:#9ca3af;">0 vidéo(s)</div>
@@ -593,6 +595,13 @@
         });
     }
 
+    function reportWatchSession(videoId) {
+        if (!videoId) return;
+        const p = document.getElementById('mainPlayer');
+        const watchedSeconds = Math.floor(Number(p?.currentTime) || 0);
+        fetch(`/api/videos/${videoId}/watch-session?watchedSeconds=${watchedSeconds}&page=recently`, { method: 'POST' }).catch(() => {});
+    }
+
     function getSelectedPageSize() {
         const raw = Number(document.getElementById('pageSizeSelect')?.value || 50);
         return Number.isFinite(raw) && raw > 0 ? raw : 50;
@@ -743,6 +752,12 @@
     }
     function openPlayerByIndex(index) {
         if (!currentVideos || index < 0 || index >= currentVideos.length) return;
+
+        const previousVideo = currentIndex >= 0 && currentVideos[currentIndex] ? currentVideos[currentIndex] : null;
+        if (previousVideo) {
+            reportWatchSession(previousVideo.id);
+        }
+
         currentIndex = index;
         const video = currentVideos[index];
         document.getElementById('playerTitle').textContent = video.title || 'Lecture vidéo';
@@ -857,6 +872,10 @@
         }
     }
     function closePlayer() { 
+        const watchedVideo = currentIndex >= 0 && currentVideos[currentIndex] ? currentVideos[currentIndex] : null;
+        if (watchedVideo) {
+            reportWatchSession(watchedVideo.id);
+        }
         const p = document.getElementById('mainPlayer'); 
         p.pause(); 
         p.src=''; 

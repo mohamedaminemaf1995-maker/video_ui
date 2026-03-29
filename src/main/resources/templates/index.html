@@ -665,6 +665,10 @@
         }
 
         function closePlayer() {
+            const watchedVideo = currentIndex >= 0 && currentVideos[currentIndex] ? currentVideos[currentIndex] : null;
+            if (watchedVideo) {
+                reportWatchSession(watchedVideo.id);
+            }
             const player = document.getElementById('mainPlayer');
             player.pause();
             player.src = '';
@@ -978,6 +982,10 @@
         // openPlayerByIndex is implemented later; this placeholder is intentionally kept for ordering when script is parsed.        let deleteCandidateId = null;
 
         function closePlayer() {
+            const watchedVideo = currentIndex >= 0 && currentVideos[currentIndex] ? currentVideos[currentIndex] : null;
+            if (watchedVideo) {
+                reportWatchSession(watchedVideo.id);
+            }
             const player = document.getElementById('mainPlayer');
             player.pause();
             player.src = '';
@@ -1255,8 +1263,20 @@
             });
         }
 
+        function reportWatchSession(videoId) {
+            if (!videoId) return;
+            const p = document.getElementById('mainPlayer');
+            const watchedSeconds = Math.floor(Number(p?.currentTime) || 0);
+            fetch(`/api/videos/${videoId}/watch-session?watchedSeconds=${watchedSeconds}&page=index`, { method: 'POST' }).catch(() => {});
+        }
+
         function openPlayerByIndex(index) {
             if (!currentVideos || index < 0 || index >= currentVideos.length) return;
+
+            const previousVideo = currentIndex >= 0 && currentVideos[currentIndex] ? currentVideos[currentIndex] : null;
+            if (previousVideo) {
+                reportWatchSession(previousVideo.id);
+            }
 
             currentIndex = index;
             const video = currentVideos[index];
@@ -1398,6 +1418,7 @@
             <button class="nav-chip active" onclick="location.href='/'">Bibliothèque</button>
             <button class="nav-chip" onclick="location.href='/favorites'">Favoris</button>
             <button class="nav-chip" onclick="location.href='/recently'">Récemment vus</button>
+            <button class="nav-chip" onclick="location.href='/stats'">Statistiques</button>
         </div>
 
 

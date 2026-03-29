@@ -426,13 +426,15 @@
             <button class="nav-chip" onclick="location.href='/'">Bibliothèque</button>
             <button class="nav-chip active" onclick="location.href='/favorites'">Favoris</button>
             <button class="nav-chip" onclick="location.href='/recently'">Récemment vus</button>
+            <button class="nav-chip" onclick="location.href='/stats'">Statistiques</button>
         </div>
     </div>
     <div class="container">
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
         <button class="btn-secondary" onclick="location.href='/'">Bibliothèque</button>
         <button class="btn-secondary" onclick="location.href='/favorites'">Favoris</button>
-        <button class="btn-secondary" onclick="location.href='/recently'" style="margin-left:auto;">Récemment vus</button>
+        <button class="btn-secondary" onclick="location.href='/recently'">Récemment vus</button>
+        <button class="btn-secondary" onclick="location.href='/stats'" style="margin-left:auto;">Statistiques</button>
     </div>
 
     <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
@@ -806,6 +808,12 @@
 
     function openPlayerByIndex(index) {
         if (!currentVideos || index < 0 || index >= currentVideos.length) return;
+
+        const previousVideo = currentIndex >= 0 && currentVideos[currentIndex] ? currentVideos[currentIndex] : null;
+        if (previousVideo) {
+            reportWatchSession(previousVideo.id);
+        }
+
         currentIndex = index;
         const video = currentVideos[index];
         
@@ -818,6 +826,7 @@
         player.pause();
         player.src = video.url || '';
         document.getElementById('playerModal').style.display = 'flex';
+        markVideoAsWatched(video.id);
 
         // Build album checkboxes
         const videoAlbums = Array.isArray(video.albums) ? video.albums : [];
@@ -996,18 +1005,25 @@
         }
     }
 
-    function initPlayerEvents() {
     function markVideoAsWatched(videoId) {
         if (!videoId) return;
         fetch(`/api/videos/${videoId}/watched`, { method: 'POST' }).catch(error => {
             console.error('Erreur mise a jour recently watched:', error);
         });
     }
+
+    function reportWatchSession(videoId) {
+        if (!videoId) return;
+        const p = document.getElementById('mainPlayer');
+        const watchedSeconds = Math.floor(Number(p?.currentTime) || 0);
+        fetch(`/api/videos/${videoId}/watch-session?watchedSeconds=${watchedSeconds}&page=favorites`, { method: 'POST' }).catch(() => {});
+    }
+
+    function initPlayerEvents() {
         const player = document.getElementById('mainPlayer');
         const seek = document.getElementById('seekBar');
 
         player.addEventListener('ended', () => {
-        markVideoAsWatched(video.id);
             if (currentIndex < currentVideos.length - 1) {
                 playNext();
             }
@@ -1046,6 +1062,10 @@
     }
 
     function closePlayer() { 
+        const watchedVideo = currentIndex >= 0 && currentVideos[currentIndex] ? currentVideos[currentIndex] : null;
+        if (watchedVideo) {
+            reportWatchSession(watchedVideo.id);
+        }
         const p = document.getElementById('mainPlayer'); 
         p.pause(); 
         p.src=''; 

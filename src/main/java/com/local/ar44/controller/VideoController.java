@@ -10,6 +10,7 @@ import com.local.ar44.dto.VideoResponse;
 import com.local.ar44.repo.AlbumRepository;
 import com.local.ar44.repo.AppConfigRepository;
 import com.local.ar44.repo.VideoRepository;
+import com.local.ar44.service.StatsService;
 import com.local.ar44.service.ThumbnailStorageService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -37,6 +38,7 @@ public class VideoController {
     private final VideoRepository videoRepository;
     private final AppConfigRepository appConfigRepository;
     private final AlbumRepository albumRepository;
+    private final StatsService statsService;
     private final ThumbnailStorageService thumbnailStorageService;
 
     @PersistenceContext
@@ -45,10 +47,12 @@ public class VideoController {
     public VideoController(VideoRepository videoRepository,
                            AppConfigRepository appConfigRepository,
                            AlbumRepository albumRepository,
+                           StatsService statsService,
                            ThumbnailStorageService thumbnailStorageService) {
         this.videoRepository = videoRepository;
         this.appConfigRepository = appConfigRepository;
         this.albumRepository = albumRepository;
+        this.statsService = statsService;
         this.thumbnailStorageService = thumbnailStorageService;
     }
 
@@ -513,6 +517,15 @@ public class VideoController {
                 .orElseThrow(() -> new RuntimeException("Video introuvable"));
         video.setLastWatchedAt(LocalDateTime.now());
         videoRepository.save(video);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/watch-session")
+    public ResponseEntity<Void> logWatchSession(@PathVariable Long id,
+                                                @RequestParam(required = false) Integer watchedSeconds,
+                                                @RequestParam(required = false) String page,
+                                                HttpSession session) {
+        statsService.logWatchSession(id, page, (String) session.getAttribute("username"), watchedSeconds);
         return ResponseEntity.ok().build();
     }
 
