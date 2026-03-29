@@ -254,6 +254,53 @@
             padding: 24px 8px;
         }
 
+        .list-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .page-size-select {
+            background: rgba(15, 23, 42, 0.9);
+            color: #dbeafe;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 8px;
+            padding: 4px 8px;
+            font-size: 13px;
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 6px 0 14px;
+            flex-wrap: wrap;
+        }
+
+        .page-btn {
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.78);
+            color: #cbd5e1;
+            padding: 5px 9px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .page-btn.active {
+            background: linear-gradient(90deg, #38bdf8, #6366f1);
+            color: #fff;
+            border-color: rgba(56, 189, 248, 0.85);
+        }
+
+        .page-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
         .nav-chip-wrap {
             display: grid;
             grid-template-columns: 1fr;
@@ -370,7 +417,10 @@
 
     <script>
         let currentVideos = [];
+        let allVideos = [];
         let currentIndex = -1;
+        let currentPage = 1;
+        let pageSize = 20;
         let selectedVideoIds = new Set();
 
         async function fetchJson(url) {
@@ -430,30 +480,87 @@
             return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
         }
 
+        function getSelectedPageSize() {
+            const raw = Number(document.getElementById('pageSizeSelect')?.value || 20);
+            return Number.isFinite(raw) && raw > 0 ? raw : 20;
+        }
+
+        function renderPagination(totalCount, totalPages) {
+            const box = document.getElementById('pagination');
+            if (!box) return;
+            box.innerHTML = '';
+
+            if (!totalCount || totalPages <= 1) return;
+
+            const prev = document.createElement('button');
+            prev.className = 'page-btn';
+            prev.textContent = 'Préc';
+            prev.disabled = currentPage <= 1;
+            prev.onclick = () => goToPage(currentPage - 1);
+            box.appendChild(prev);
+
+            const start = Math.max(1, currentPage - 2);
+            const end = Math.min(totalPages, currentPage + 2);
+            for (let p = start; p <= end; p++) {
+                const btn = document.createElement('button');
+                btn.className = 'page-btn' + (p === currentPage ? ' active' : '');
+                btn.textContent = String(p);
+                btn.onclick = () => goToPage(p);
+                box.appendChild(btn);
+            }
+
+            const next = document.createElement('button');
+            next.className = 'page-btn';
+            next.textContent = 'Suiv';
+            next.disabled = currentPage >= totalPages;
+            next.onclick = () => goToPage(currentPage + 1);
+            box.appendChild(next);
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.max(1, Math.ceil((allVideos?.length || 0) / pageSize));
+            currentPage = Math.max(1, Math.min(totalPages, page));
+            renderVideos(allVideos, true);
+        }
+
+        function onPageSizeChange() {
+            pageSize = getSelectedPageSize();
+            currentPage = 1;
+            renderVideos(allVideos, true);
+        }
+
         function closePlayer() {
             const player = document.getElementById('mainPlayer');
             player.pause();
             player.src = '';
             document.getElementById('playerModal').style.display = 'none';
         }
-        function renderVideos(videos) {
+        function renderVideos(videos, keepPage = false) {
 
-            currentVideos = videos || [];
+            allVideos = videos || [];
+            if (!keepPage) currentPage = 1;
+            pageSize = getSelectedPageSize();
+            const totalPages = Math.max(1, Math.ceil(allVideos.length / pageSize));
+            if (currentPage > totalPages) currentPage = totalPages;
+            const start = (currentPage - 1) * pageSize;
+            currentVideos = allVideos.slice(start, start + pageSize);
             currentIndex = -1;
 
             const container = document.getElementById('videos');
             const countBox = document.getElementById('videoCount');
             container.innerHTML = '';
-            countBox.textContent = currentVideos.length + ' vidéo(s)';
+            countBox.textContent = allVideos.length + ' vidéo(s)';
 
-            if (!currentVideos.length) {
+            if (!allVideos.length) {
+                renderPagination(0, 1);
                 container.innerHTML = '<div class="empty-state">Aucune vidéo trouvée.</div>';
                 return;
             }
 
             // Vérifier si au moins une vidéo a une URL valide
-            const hasValidUrl = currentVideos.some(v => v.url && typeof v.url === 'string' && v.url.trim() !== '');
+            const hasValidUrl = allVideos.some(v => v.url && typeof v.url === 'string' && v.url.trim() !== '');
             if (!hasValidUrl) {
+                renderPagination(allVideos.length, totalPages);
                 container.innerHTML = '<div class="empty-state" style="color:#f87171;">Erreur : aucune vidéo n\'a d\'URL valide.<br>Vérifiez la configuration du host ou la base de données.<br>Astuce : testez l\'API /api/videos dans un navigateur pour voir les URLs générées.</div>';
                 return;
             }
@@ -482,6 +589,8 @@
                 `;
                 container.appendChild(card);
             });
+
+            renderPagination(allVideos.length, totalPages);
         }
 
         async function toggleFavoriteModal(videoId, button) {
@@ -526,9 +635,10 @@
                 if (favoriteOnly) {
                     videos = videos.filter(v => v.favorite === true);
                 }
+                const sortOrder = document.getElementById('sortSelect').value;
+                applySortOrder(sortOrder, videos);
                 renderVideos(videos);
                 setStatus('');
-                document.getElementById('sortSelect').value = 'default';
             } catch (e) {
                 setStatus('Erreur chargement vidéos');
             }
@@ -649,25 +759,25 @@
 
         function onSortChange() {
             const sortOrder = document.getElementById('sortSelect').value;
-            applySortOrder(sortOrder);
-            renderVideos(currentVideos);
+            applySortOrder(sortOrder, allVideos);
+            renderVideos(allVideos, true);
         }
 
-        function applySortOrder(order) {
-            if (!currentVideos || currentVideos.length === 0) return;
+        function applySortOrder(order, list = allVideos) {
+            if (!list || list.length === 0) return;
 
             switch (order) {
                 case 'name-asc':
-                    currentVideos.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+                    list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
                     break;
                 case 'name-desc':
-                    currentVideos.sort((a, b) => (b.title || '').localeCompare(a.title || ''));
+                    list.sort((a, b) => (b.title || '').localeCompare(a.title || ''));
                     break;
                 case 'recent':
-                    currentVideos.sort((a, b) => (b.id || 0) - (a.id || 0));
+                    list.sort((a, b) => (b.id || 0) - (a.id || 0));
                     break;
                 case 'oldest':
-                    currentVideos.sort((a, b) => (a.id || 0) - (b.id || 0));
+                    list.sort((a, b) => (a.id || 0) - (b.id || 0));
                     break;
                 case 'default':
                 default:
@@ -940,8 +1050,8 @@
 
         // helper: find index of a video in currentVideos by id
         function findIndexByVideoId(id) {
-            if (!currentVideos || currentVideos.length === 0) return -1;
-            return currentVideos.findIndex(v => v.id === id);
+            if (!allVideos || allVideos.length === 0) return -1;
+            return allVideos.findIndex(v => v.id === id);
         }
 
         // Unified save: send albums (array) and sourceIndex together via PUT /api/videos/{id}
@@ -984,9 +1094,15 @@
             if (idx >= 0) currentVideos[idx] = updated;
 
             await loadVideos();
-            // re-open modal positioned on same video if still present
+            // re-open modal positioned on same video if still present, even across pages
             const newIndex = findIndexByVideoId(updated.id);
-            if (newIndex >= 0) openPlayerByIndex(newIndex);
+            if (newIndex >= 0) {
+                pageSize = getSelectedPageSize();
+                currentPage = Math.floor(newIndex / pageSize) + 1;
+                renderVideos(allVideos, true);
+                const pageIndex = currentVideos.findIndex(v => v.id === updated.id);
+                if (pageIndex >= 0) openPlayerByIndex(pageIndex);
+            }
             setStatus('Modification enregistrée');
         }
 
@@ -1101,7 +1217,19 @@
             </div>
         </div>
 
-        <div id="videoCount" class="count-box"></div>
+        <div class="list-controls">
+            <div id="videoCount" class="count-box"></div>
+            <label style="font-size:13px; color:#cbd5e1; display:flex; align-items:center; gap:8px;">
+                Afficher
+                <select id="pageSizeSelect" class="page-size-select" onchange="onPageSizeChange()">
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                </select>
+            </label>
+        </div>
+        <div id="pagination" class="pagination"></div>
         <div id="videos" class="video-grid"></div>
     </main>
 </div>
