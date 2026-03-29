@@ -23,8 +23,24 @@
             min-height: 100vh;
         }
 
+        .app {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: linear-gradient(135deg, #0b1225 60%, #1e293b 100%);
+            box-shadow: 2px 0 16px #0002;
+            min-width: 220px;
+            width: 220px;
+            padding: 10px 8px;
+        }
+
         .container {
-            padding: 18px;
+            flex: 1;
+            padding: 24px 24px 24px 24px;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         .top-row {
@@ -47,6 +63,41 @@
 
         .btn-secondary:hover {
             background: rgba(15,23,42,0.95);
+        }
+
+        .nav-chip-wrap {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 7px;
+            margin-bottom: 10px;
+        }
+
+        .nav-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(148,163,184,0.32);
+            background: rgba(15,23,42,0.72);
+            color: #cbd5e1;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .nav-chip:hover {
+            transform: translateX(3px);
+            border-color: rgba(56,189,248,0.6);
+            background: rgba(30,41,59,0.95);
+        }
+
+        .nav-chip.active {
+            border-color: rgba(56,189,248,0.8);
+            background: linear-gradient(90deg, rgba(56,189,248,0.2), rgba(99,102,241,0.2));
+            color: #e0f2fe;
+            box-shadow: 0 6px 16px rgba(30,64,175,0.2);
         }
 
         .btn {
@@ -187,11 +238,18 @@
                 <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' viewBox='0 0 24 24'><path stroke='#f87171' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M17 17L7 7m10 0L7 17'/></svg>
             </button>
         </div>
+
+        <div class="nav-chip-wrap">
+            <button class="nav-chip" onclick="location.href='/'">Bibliothèque</button>
+            <button class="nav-chip active" onclick="location.href='/favorites'">Favoris</button>
+            <button class="nav-chip" onclick="location.href='/recently'">Récemment vus</button>
+        </div>
     </div>
     <div class="container">
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
-
-        <button class="btn-secondary" onclick="location.href='/'" style="margin-left:auto;">Bibliothèque</button>
+        <button class="btn-secondary" onclick="location.href='/'">Bibliothèque</button>
+        <button class="btn-secondary" onclick="location.href='/favorites'">Favoris</button>
+        <button class="btn-secondary" onclick="location.href='/recently'" style="margin-left:auto;">Récemment vus</button>
     </div>
 
     <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">

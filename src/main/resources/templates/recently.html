@@ -1,72 +1,95 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Historique - Recently Watched</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vidéos récemment vues - Ar44</title>
+    <link rel="icon" href="/2938237.png">
     <style>
-        * { box-sizing: border-box; }
-        :root {
-            --bg: #05070a;
-            --panel: #0f172a;
-            --text: #e2e8f0;
-            --muted: #94a3b8;
-            --blue: #3b82f6;
-            --blue-dark: #1d4ed8;
-            --border: rgba(59,130,246,0.25);
-        }
         body {
             margin: 0;
-            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-            background: radial-gradient(circle at 20% 10%, rgba(14,165,233,0.06), transparent 45%), linear-gradient(180deg, #04050a 0%, #050912 100%);
-            color: var(--text);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #0b1225 0%, #1e293b 100%);
+            color: #e0e7ef;
+        }
+        .app {
+            display: flex;
             min-height: 100vh;
         }
+        .sidebar {
+            background: linear-gradient(135deg, #0b1225 60%, #1e293b 100%);
+            box-shadow: 2px 0 16px #0002;
+            min-width: 220px;
+            width: 220px;
+            padding: 10px 8px;
+        }
         .container {
-            padding: 18px;
-        }
-        .top-row {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-        .btn-secondary {
-            padding: 8px 14px;
-            border-radius: 10px;
-            border: 1px solid rgba(148,163,184,0.35);
-            background: rgba(15,23,42,0.8);
-            color: var(--text);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .btn-secondary:hover {
-            background: rgba(15,23,42,0.95);
-        }
-        .btn {
-            padding: 8px 14px;
-            border-radius: 10px;
-            border: none;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(59,130,246,0.25);
-        }
-        .btn:hover {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            transform: translateY(-1px);
-        }
-        .page-title {
-            font-size: 26px;
-            margin: 0;
-            color: #dbeafe;
+            flex: 1;
+            padding: 32px 32px 32px 32px;
+            max-width: 1200px;
+            margin: 0 auto;
         }
         .video-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 22px;
+        }
+        .btn, .btn-secondary {
+            border: none;
+            border-radius: 8px;
+            padding: 8px 18px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.18s, color 0.18s;
+        }
+        .btn {
+            background: linear-gradient(90deg, #38bdf8, #6366f1);
+            color: #fff;
+        }
+        .btn-secondary {
+            background: #1e293b;
+            color: #60a5fa;
+            border: 1px solid #334155;
+        }
+        .btn:hover, .btn-secondary:hover {
+            background: linear-gradient(90deg, #6366f1, #38bdf8);
+            color: #fff;
+        }
+
+        .nav-chip-wrap {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 7px;
+            margin-bottom: 10px;
+        }
+
+        .nav-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(148,163,184,0.32);
+            background: rgba(15,23,42,0.72);
+            color: #cbd5e1;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .nav-chip:hover {
+            transform: translateX(3px);
+            border-color: rgba(56,189,248,0.6);
+            background: rgba(30,41,59,0.95);
+        }
+
+        .nav-chip.active {
+            border-color: rgba(56,189,248,0.8);
+            background: linear-gradient(90deg, rgba(56,189,248,0.2), rgba(99,102,241,0.2));
+            color: #e0f2fe;
+            box-shadow: 0 6px 16px rgba(30,64,175,0.2);
         }
         .video-card {
             position: relative;
@@ -145,6 +168,15 @@
             font-weight: 600;
             font-size: 12px;
         }
+        .player-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
         #videoCount {
             margin-bottom: 8px;
             color: #94a3b8;
@@ -153,28 +185,91 @@
 </head>
 <body>
 <div class="app">
-    <div class="sidebar" style="padding: 10px 8px; min-width: 220px; width: 220px;">
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-            <img src="/2938237.png" alt="icon" style="width:32px; height:32px; border-radius:8px; box-shadow:0 2px 8px #0003;">
-            <div>
-                <h2 style="margin:0; color:#bfdbfe; font-size:20px;">Arcad</h2>
-                <div style="font-size:11px; color:#94a3b8; margin-top:1px;">Dashboard vidéo</div>
-            </div>
-            <span style="color:#22d3ee; font-weight:bold; margin-left:auto; font-size:13px;">v1</span>
+    <div class="sidebar">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+            <img src="/2938237.png" alt="icon" style="width:38px; height:38px; border-radius:10px; box-shadow:0 2px 8px #0003;">
+            <span style="font-family:'Segoe UI',Arial,sans-serif; font-size:1.7rem; font-weight:800; letter-spacing:0.04em; background:linear-gradient(90deg,#38bdf8,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent; background-clip:text; color:transparent;">Ar44</span>
+            <button onclick="logout()" title="Déconnexion" style="margin-left:auto; background:rgba(239,68,68,0.18); border:none; color:#f87171; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.32)'" onmouseout="this.style.background='rgba(239,68,68,0.18)'">
+                <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' viewBox='0 0 24 24'><path stroke='#f87171' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M17 17L7 7m10 0L7 17'/></svg>
+            </button>
+        </div>
+
+        <div class="nav-chip-wrap">
+            <button class="nav-chip" onclick="location.href='/'">Bibliothèque</button>
+            <button class="nav-chip" onclick="location.href='/favorites'">Favoris</button>
+            <button class="nav-chip active" onclick="location.href='/recently'">Récemment vus</button>
         </div>
     </div>
     <div class="container">
-    <div class="top-row">
-        <button class="btn-secondary" onclick="location.href='/'">Bibliothèque</button>
-        <h1 class="page-title">Historique</h1>
-        <button onclick="logout()" title="Déconnexion" style="margin-left:auto; background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s ease;" onmouseover="this.style.background='rgba(239,68,68,0.3)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'">Déconnexion</button>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+            <button class="btn-secondary" onclick="location.href='/'">Bibliothèque</button>
+            <button class="btn-secondary" onclick="location.href='/favorites'">Favoris</button>
+            <button class="btn-secondary" onclick="location.href='/recently'" style="margin-left:auto;">Récemment vus</button>
+        </div>
+        <div id="videoCount" style="margin-bottom:8px;color:#9ca3af;">0 vidéo(s)</div>
+        <div id="videos" class="video-grid"></div>
     </div>
-    <div id="videoCount" style="margin-bottom:8px;color:#9ca3af;">0 vidéo(s)</div>
-    <div id="videos" class="video-grid"></div>
+</div>
+
+<div id="playerModal" class="player-modal">
+    <div style="width:82%; max-width:1100px; background:linear-gradient(135deg, #0b1225, #0f172a); border-radius:16px; overflow:hidden; border:1px solid rgba(59,130,246,0.3);">
+        <div style="padding:20px 24px; background:linear-gradient(90deg, #0c1429, #132a4a); border-bottom:1px solid rgba(59,130,246,0.2);">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:250px;">
+                    <h3 id="playerTitle" style="margin:0 0 8px 0; font-size:22px; font-weight:700; color:#dbeafe;">Lecture vidéo</h3>
+                    <div id="playerSubtitle" style="font-size:13px; color:#94a3b8;">Cliquez sur les contrôles ou utilisez les flèches ↔ et PageUp/PageDown</div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:6px; background:rgba(59,130,246,0.15); padding:6px 12px; border-radius:8px; border:1px solid rgba(59,130,246,0.2);">
+                        <span style="font-size:12px; color:#94a3b8;">Favoris:</span>
+                        <strong id="playerFavoriteState" style="color:#60a5fa;">Non</strong>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; background:rgba(59,130,246,0.15); padding:6px 12px; border-radius:8px; border:1px solid rgba(59,130,246,0.2);">
+                        <span style="font-size:12px; color:#94a3b8;" id="playerDuration">00:00 / 00:00</span>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 12px; background:rgba(15,23,42,0.8); border:1px solid rgba(148,163,184,0.2); border-radius:10px;">
+                <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0;">Albums:</label>
+                <div id="albumCheckboxesContainer" style="display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:center;"></div>
+                <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 0 8px;">Niveau:</label>
+                <select id="levelSelect" style="background:rgba(11,17,36,0.8); color:#e0f2fe; border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer; transition:all 0.2s ease; height:28px;">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                </select>
+                <span id="levelValue" style="font-weight:700; color:#60a5fa; font-size:12px; min-width:15px; text-align:center;">0</span>
+                <button onclick="saveModalCombined()" title="Enregistrer" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:14px; transition:all 0.2s ease; box-shadow:0 2px 6px rgba(59,130,246,0.25); display:flex; align-items:center; justify-content:center; height:28px; width:28px;" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
+                    💾
+                </button>
+            </div>
+        </div>
+        <video id="mainPlayer" controls autoplay style="width:100%; max-height:75vh; background:black; display:block;"></video>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:linear-gradient(90deg, #0c1429, #132a4a); border-top:1px solid rgba(59,130,246,0.2); gap:6px; flex-wrap:wrap;">
+            <div style="display:flex; gap:4px; align-items:center;">
+                <button id="prevBtn" onclick="playPrevious()" title="Précédent" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">⏮</button>
+                <button onclick="seekBy(-10)" title="-10s" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">◀</button>
+                <button onclick="playOrPause()" id="playPauseBtn" title="Play/Pause" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 7px; border-radius:5px; cursor:pointer; font-weight:700; font-size:12px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">▶</button>
+                <button onclick="seekBy(10)" title="+10s" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">▶️</button>
+                <button id="nextBtn" onclick="playNext()" title="Suivant" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">⏭</button>
+            </div>
+            <div style="display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;">
+                <button id="favoriteModalBtn" onclick="toggleFavoriteModal(currentVideos[currentIndex]?.id, this)" title="Favori" style="background:linear-gradient(135deg, #ec4899, #db2777); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:12px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(236,72,153,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #db2777, #be185d)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #ec4899, #db2777)';this.style.transform='scale(1)'">♥</button>
+                <button onclick="closePlayer()" title="Fermer" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">✕</button>
+            </div>
+        </div>
+    </div>
 </div>
 <script>
     let currentVideos = [];
     let currentIndex = -1;
+    async function fetchJson(url) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+    }
     function formatDuration(ms) {
         if (!ms) return '';
         const totalSeconds = Math.floor(ms / 1000);
@@ -184,44 +279,242 @@
         if (hours > 0) return `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
         return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
     }
+    function setStatus(message) {}
+    function findIndexByVideoId(id) {
+        if (!currentVideos || currentVideos.length === 0) return -1;
+        return currentVideos.findIndex(v => v.id === id);
+    }
+    async function toggleFavoriteModal(videoId, button) {
+        const video = currentVideos.find(v => v.id === videoId);
+        if (!video) return;
+        await fetch(`/api/videos/favorite/toggle?id=${videoId}`);
+        video.favorite = !video.favorite;
+        button.classList.toggle('favorite-active');
+        document.getElementById('playerFavoriteState').textContent = video.favorite ? 'Oui' : 'Non';
+    }
+    async function saveModalCombined() {
+        if (currentIndex < 0 || !currentVideos[currentIndex]) return;
+        const video = currentVideos[currentIndex];
+        const container = document.getElementById('albumCheckboxesContainer');
+        const selectedAlbums = Array.from(container.querySelectorAll('input[type="checkbox"]'))
+            .filter(cb => cb.checked)
+            .map(cb => cb.value.trim())
+            .filter(Boolean);
+        const newLevel = parseInt(document.getElementById('levelSelect').value, 10);
+        const payload = {};
+        if (selectedAlbums.length) payload.albums = selectedAlbums;
+        if (!Number.isNaN(newLevel)) payload.sourceIndex = Math.max(0, Math.min(5, newLevel));
+        if (Object.keys(payload).length === 0) return;
+        const res = await fetch('/api/videos/' + encodeURIComponent(video.id), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            console.error('Erreur update modal', res.status, await res.text());
+            return;
+        }
+        const updated = await res.json();
+        const idx = findIndexByVideoId(updated.id);
+        if (idx >= 0) currentVideos[idx] = updated;
+        await loadRecently();
+        const newIndex = findIndexByVideoId(updated.id);
+        if (newIndex >= 0) openPlayerByIndex(newIndex);
+    }
     function renderVideos(videos) {
         currentVideos = videos || [];
+        currentIndex = -1;
         const container = document.getElementById('videos');
         const countBox = document.getElementById('videoCount');
         container.innerHTML = '';
         countBox.textContent = currentVideos.length + ' vidéo(s)';
-        if (!currentVideos.length) { container.innerHTML = '<div style="color:#9ca3af;padding:24px 8px;">Aucune vidéo récemment regardée.</div>'; return; }
+        if (!currentVideos.length) { container.innerHTML = '<div style="color:#9ca3af;padding:24px 8px;">Aucune vidéo récemment vue.</div>'; return; }
         currentVideos.forEach((v, index) => {
             const card = document.createElement('div');
             card.className = 'video-card';
+            card.dataset.id = v.id;
             card.innerHTML = `
                 <img alt="thumbnail" src="/api/videos/thumbnail?id=${v.id}" class="video-thumb" onclick="openPlayerByIndex(${index})" />
                 <div class="video-overlay">
                     <div class="video-title">${v.title ?? ''}</div>
                     <div class="video-meta">${(v.creator ?? 'Unknown')} ${(v.album) ? '• ' + v.album : ''}</div>
                 </div>
-                <div class="favorite-icon ${v.favorite ? 'favorite-active' : ''}">♥</div>
+                <div class="favorite-icon ${v.favorite ? 'favorite-active' : ''}" onclick="toggleFavorite(event, ${v.id}, this)">♥</div>
                 <div class="video-duration">${formatDuration(v.durationMs)}</div>
             `;
             container.appendChild(card);
         });
     }
-    async function loadRecentlyWatched() {
+    async function loadRecently() {
         try {
-            const res = await fetch('/api/videos/recently-watched');
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const videos = await res.json();
+            const videos = await fetchJson('/api/videos/recently-watched');
             renderVideos(videos);
         } catch (e) {
-            document.getElementById('videos').innerHTML = '<div style="color:#f87171;">Erreur chargement historique.</div>';
+            console.error(e);
         }
     }
-    function logout() {
+    async function toggleFavorite(event, id, element) {
+        event.stopPropagation();
+        await fetch(`/api/videos/favorite/toggle?id=${id}`);
+        if (element.classList.contains('favorite-active')) {
+            element.classList.remove('favorite-active');
+        } else {
+            element.classList.add('favorite-active');
+        }
+        await loadRecently();
+    }
+    function openPlayerByIndex(index) {
+        if (!currentVideos || index < 0 || index >= currentVideos.length) return;
+        currentIndex = index;
+        const video = currentVideos[index];
+        document.getElementById('playerTitle').textContent = video.title || 'Lecture vidéo';
+        document.getElementById('playerSubtitle').textContent = `Créateur: ${video.creator || 'Unknown'} • Level: ${video.sourceIndex ?? 'N/A'} • Albums: ${Array.isArray(video.albums) && video.albums.length > 0 ? video.albums.join(', ') : 'Aucun'}`;
+        document.getElementById('playerDuration').textContent = `${formatDuration(video.durationMs)} / ${formatDuration(video.durationMs || 0)}`;
+        document.getElementById('playerFavoriteState').textContent = video.favorite ? 'Oui' : 'Non';
+        document.getElementById('mainPlayer').src = video.url || '';
+        document.getElementById('playerModal').style.display = 'flex';
+        const videoAlbums = Array.isArray(video.albums) ? video.albums : [];
+        const container = document.getElementById('albumCheckboxesContainer');
+        container.innerHTML = '';
+        const allAlbums = getAllAlbums();
+        if (allAlbums && allAlbums.length > 0) {
+            allAlbums.forEach(album => {
+                const label = document.createElement('label');
+                label.style.display = 'flex';
+                label.style.alignItems = 'center';
+                label.style.gap = '4px';
+                label.style.cursor = 'pointer';
+                label.style.color = '#e0f2fe';
+                label.style.fontSize = '11px';
+                label.style.padding = '3px 8px';
+                label.style.background = 'rgba(59,130,246,0.25)';
+                label.style.border = '1px solid rgba(59,130,246,0.4)';
+                label.style.borderRadius = '5px';
+                label.style.whiteSpace = 'nowrap';
+                label.style.transition = 'all 0.2s ease';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = album;
+                checkbox.checked = videoAlbums.includes(album);
+                checkbox.style.cursor = 'pointer';
+                checkbox.style.width = '14px';
+                checkbox.style.height = '14px';
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(album));
+                label.addEventListener('mouseenter', () => {
+                    label.style.background = 'rgba(59,130,246,0.4)';
+                    label.style.borderColor = 'rgba(59,130,246,0.6)';
+                });
+                label.addEventListener('mouseleave', () => {
+                    label.style.background = 'rgba(59,130,246,0.25)';
+                    label.style.borderColor = 'rgba(59,130,246,0.4)';
+                });
+                container.appendChild(label);
+            });
+        }
+        const level = (video.sourceIndex != null && video.sourceIndex >= 1 && video.sourceIndex <= 5) ? video.sourceIndex : 1;
+        document.getElementById('levelSelect').value = level;
+        document.getElementById('levelValue').textContent = video.sourceIndex ?? 0;
+    }
+    function getAllAlbums() {
+        const albums = new Set();
+        currentVideos.forEach(v => {
+            if (Array.isArray(v.albums)) {
+                v.albums.forEach(a => albums.add(a));
+            }
+        });
+        return Array.from(albums).sort();
+    }
+    function seekBy(seconds) {
+        const player = document.getElementById('mainPlayer');
+        if (!player || isNaN(player.currentTime)) return;
+        const target = Math.max(0, Math.min(player.duration || Infinity, player.currentTime + seconds));
+        player.currentTime = target;
+    }
+    function playOrPause() {
+        const player = document.getElementById('mainPlayer');
+        if (!player) return;
+        if (player.paused || player.ended) {
+            player.play();
+        } else {
+            player.pause();
+        }
+    }
+    function initPlayerEvents() {
+        const player = document.getElementById('mainPlayer');
+        player.addEventListener('ended', () => {
+            if (currentIndex < currentVideos.length - 1) {
+                playNext();
+            }
+        });
+        player.addEventListener('play', () => {
+            const btn = document.getElementById('playPauseBtn');
+            if (btn) btn.textContent = '⏸';
+        });
+        player.addEventListener('pause', () => {
+            const btn = document.getElementById('playPauseBtn');
+            if (btn) btn.textContent = '▶';
+        });
+    }
+    function closePlayer() { 
+        const p = document.getElementById('mainPlayer'); 
+        p.pause(); 
+        p.src=''; 
+        document.getElementById('playerModal').style.display='none'; 
+        currentIndex = -1;
+    }
+    function playNext() { 
+        if (!currentVideos || currentVideos.length===0) return; 
+        const next=(currentIndex+1)%currentVideos.length; 
+        openPlayerByIndex(next); 
+    }
+    function playPrevious() { 
+        if (!currentVideos || currentVideos.length===0) return; 
+        const prev=(currentIndex-1+currentVideos.length)%currentVideos.length; 
+        openPlayerByIndex(prev); 
+    }
+    async function checkAuthentication() {
+        try {
+            const res = await fetch('/api/config/auth/check');
+            const isAuthenticated = await res.json();
+            if (!isAuthenticated) {
+                window.location.href = '/login';
+            }
+        } catch (e) {
+            console.error('Erreur vérification auth:', e);
+            window.location.href = '/login';
+        }
+    }
+    async function logout() {
         if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-            fetch('/api/config/logout').then(() => window.location.href = '/login');
+            try {
+                await fetch('/api/config/logout');
+                window.location.href = '/login';
+            } catch (e) {
+                console.error('Erreur logout:', e);
+            }
         }
     }
-    window.addEventListener('load', loadRecentlyWatched);
+    window.addEventListener('load', async () => { 
+        await checkAuthentication();
+        initPlayerEvents();
+        await loadRecently(); 
+    });
+    document.addEventListener('keydown', (e) => {
+        const modalVisible = document.getElementById('playerModal').style.display === 'flex';
+        if (!modalVisible) return;
+        if (e.key === 'PageDown') {
+            playNext();
+        } else if (e.key === 'PageUp') {
+            playPrevious();
+        } else if (e.key === 'ArrowRight') {
+            seekBy(10);
+        } else if (e.key === 'ArrowLeft') {
+            seekBy(-10);
+        } else if (e.key === 'Escape') {
+            closePlayer();
+        }
+    });
 </script>
 </body>
 </html>

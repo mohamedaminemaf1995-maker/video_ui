@@ -38,14 +38,15 @@
         }
 
         .sidebar {
-            width: 280px;
-            min-width: 280px;
+            width: 250px;
+            min-width: 250px;
             background: linear-gradient(180deg, #0c1121, #0f172a);
             border-right: 1px solid rgba(56, 189, 248, 0.25);
-            padding: 18px;
+            padding: 12px;
             overflow-y: auto;
             position: relative;
             z-index: 2;
+            animation: sidebarEntrance 420ms ease-out;
         }
 
         .content {
@@ -66,18 +67,18 @@
         .section-title {
             font-size: 13px;
             color: var(--muted);
-            margin: 0 0 8px;
+            margin: 0 0 6px;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
 
         .host-box,
         .filter-box {
-            margin-bottom: 20px;
-            padding: 12px;
+            margin-bottom: 10px;
+            padding: 9px;
             background: rgba(15, 23, 42, 0.8);
             border: 1px solid rgba(59, 130, 246, 0.4);
-            border-radius: 12px;
+            border-radius: 10px;
         }
 
         .host-input,
@@ -102,8 +103,8 @@
         .btn-secondary,
         .icon-btn {
             width: 100%;
-            margin-top: 10px;
-            padding: 10px;
+            margin-top: 7px;
+            padding: 8px;
             border: none;
             border-radius: 10px;
             font-weight: 600;
@@ -251,6 +252,91 @@
         .empty-state {
             color: #94a3b8;
             padding: 24px 8px;
+        }
+
+        .nav-chip-wrap {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 7px;
+            margin-bottom: 10px;
+        }
+
+        .nav-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.32);
+            background: rgba(15, 23, 42, 0.72);
+            color: #cbd5e1;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .nav-chip:hover {
+            transform: translateX(3px);
+            border-color: rgba(56, 189, 248, 0.6);
+            background: rgba(30, 41, 59, 0.95);
+        }
+
+        .nav-chip.active {
+            border-color: rgba(56, 189, 248, 0.8);
+            background: linear-gradient(90deg, rgba(56, 189, 248, 0.2), rgba(99, 102, 241, 0.2));
+            color: #e0f2fe;
+            box-shadow: 0 6px 16px rgba(30, 64, 175, 0.2);
+        }
+
+        .accordion {
+            margin-bottom: 10px;
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.7);
+            overflow: hidden;
+        }
+
+        .accordion > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 9px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #93c5fd;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        .accordion > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .accordion-body {
+            padding: 0 9px 9px 9px;
+        }
+
+        .compact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .muted-note {
+            font-size: 11px;
+            color: #93a8c9;
+            margin-top: 4px;
+        }
+
+        @keyframes sidebarEntrance {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
        
 
@@ -917,11 +1003,10 @@
             </button>
         </div>
 
-        <!-- Add a button to open the favorites page -->
-
-        <div class="host-box">
-            <div class="section-title">Navigation</div>
-            <button class="btn-secondary" onclick="location.href='/favorites'">Voir les favoris</button>
+        <div class="nav-chip-wrap">
+            <button class="nav-chip active" onclick="location.href='/'">Bibliothèque</button>
+            <button class="nav-chip" onclick="location.href='/favorites'">Favoris</button>
+            <button class="nav-chip" onclick="location.href='/recently'">Récemment vus</button>
         </div>
 
 
@@ -957,10 +1042,10 @@
 
         <div class="filter-box">
             <p class="section-title">Album</p>
-            <select id="albumSelect" class="selector" onchange="onFilterChange()" multiple size="5">
+            <select id="albumSelect" class="selector" onchange="onFilterChange()" multiple size="4">
                 <option value="">Tous</option>
             </select>
-            <div style="font-size:11px; color:#aaa; margin-top:4px;">(Ctrl/Cmd + clic pour plusieurs)</div>
+            <div class="muted-note">(Ctrl/Cmd + clic pour plusieurs)</div>
         </div>
         <div class="filter-box">
             <label>
@@ -975,21 +1060,25 @@
         <div id="status" class="status"></div>
 
         
-        <div class="host-box">
-            <p class="section-title">Host</p>
-            <input id="hostInput" class="host-input" type="text" placeholder="192.168.1.44">
-            <button class="btn" onclick="updateHost()">Modifier host</button>
-        </div>
-
-        <div class="filter-box">
-            <p class="section-title">Sélection</p>
-            <div style="display:flex; gap:4px; flex-direction:column;">
-                <button class="btn-secondary" onclick="selectAllVisible()" style="font-size:12px; padding:6px 8px;">Tout sél.</button>
-                <button class="btn-secondary" onclick="selectNone()" style="font-size:12px; padding:6px 8px;">Annuler</button>
-                <button class="btn" onclick="exportM3U()" style="font-size:12px; padding:6px 8px; background:rgba(34,212,153,0.95);">Exporter M3U</button>
+        <details class="accordion">
+            <summary>Host</summary>
+            <div class="accordion-body">
+                <input id="hostInput" class="host-input" type="text" placeholder="192.168.1.44">
+                <button class="btn" onclick="updateHost()">Modifier host</button>
             </div>
-            <div id="selectionCount" style="font-size:11px; color:#93c5fd; margin-top:6px;"></div>
-        </div>
+        </details>
+
+        <details class="accordion" open>
+            <summary>Sélection</summary>
+            <div class="accordion-body">
+                <div class="compact-grid">
+                    <button class="btn-secondary" onclick="selectAllVisible()" style="font-size:12px; padding:6px 8px; margin-top:0;">Tout sél.</button>
+                    <button class="btn-secondary" onclick="selectNone()" style="font-size:12px; padding:6px 8px; margin-top:0;">Annuler</button>
+                </div>
+                <button class="btn" onclick="exportM3U()" style="font-size:12px; padding:7px 8px; background:rgba(34,212,153,0.95);">Exporter M3U</button>
+                <div id="selectionCount" style="font-size:11px; color:#93c5fd; margin-top:6px;"></div>
+            </div>
+        </details>
 
     </div>
 
