@@ -11,11 +11,14 @@ import com.local.ar44.repo.AlbumRepository;
 import com.local.ar44.repo.AppConfigRepository;
 import com.local.ar44.repo.VideoRepository;
 import com.local.ar44.service.ThumbnailStorageService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,6 +38,9 @@ public class VideoController {
     private final AppConfigRepository appConfigRepository;
     private final AlbumRepository albumRepository;
     private final ThumbnailStorageService thumbnailStorageService;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public VideoController(VideoRepository videoRepository,
                            AppConfigRepository appConfigRepository,
@@ -106,8 +112,7 @@ public class VideoController {
             for (String albumName : albumNames) {
                 String trimmed = albumName.trim();
                 if (!trimmed.isBlank()) {
-                    Album a = albumRepository.findByName(trimmed)
-                            .orElseGet(() -> albumRepository.save(new Album(trimmed)));
+                    Album a = findOrCreateAlbumSafe(trimmed);
                     video.getAlbums().add(a);
                 }
             }
@@ -122,10 +127,39 @@ public class VideoController {
             if (name == null) continue;
             String trimmed = name.trim();
             if (trimmed.isEmpty()) continue;
-            Album a = albumRepository.findByName(trimmed)
-                    .orElseGet(() -> albumRepository.save(new Album(trimmed)));
+            Album a = findOrCreateAlbumSafe(trimmed);
             video.getAlbums().add(a);
         }
+    }
+
+    private Album findOrCreateAlbumSafe(String albumName) {
+        return albumRepository.findByName(albumName)
+                .orElseGet(() -> saveAlbumWithSequenceRetry(albumName));
+    }
+
+    private Album saveAlbumWithSequenceRetry(String albumName) {
+        try {
+            return albumRepository.save(new Album(albumName));
+        } catch (DataIntegrityViolationException ex) {
+            if (!isAlbumIdSequenceCollision(ex)) {
+                throw ex;
+            }
+            log.warn("Album sequence out of sync detected. Realigning and retrying insert for album '{}'", albumName);
+            realignAlbumIdSequence();
+            return albumRepository.save(new Album(albumName));
+        }
+    }
+
+    private boolean isAlbumIdSequenceCollision(DataIntegrityViolationException ex) {
+        Throwable root = ex.getMostSpecificCause();
+        String message = root != null ? root.getMessage() : ex.getMessage();
+        return message != null && message.contains("album_pkey");
+    }
+
+    private void realignAlbumIdSequence() {
+        entityManager.createNativeQuery(
+                "SELECT setval(pg_get_serial_sequence('album','id'), GREATEST(COALESCE((SELECT MAX(id) FROM album), 0) + 1, 1), false)"
+        ).getSingleResult();
     }
 
     // ========================
@@ -220,6 +254,89 @@ public class VideoController {
                 .stream()
                 .map(e -> new AlbumStats(e.getKey(), e.getValue()))
                 .toList();
+    }
+
+    @PostMapping("/albums/add")
+    public ResponseEntity<String> addAlbum(@RequestParam String name) {
+        String cleaned = name == null ? "" : name.trim();
+        if (cleaned.isEmpty()) {
+            return ResponseEntity.badRequest().body("Nom album requis");
+        }
+
+        Optional<Album> existing = albumRepository.findByName(cleaned);
+        if (existing.isPresent()) {
+            return ResponseEntity.badRequest().body("Album existe déjà");
+        }
+
+        try {
+            saveAlbumWithSequenceRetry(cleaned);
+            return ResponseEntity.ok("Album ajouté");
+        } catch (DataIntegrityViolationException ex) {
+            // If another request inserted same name concurrently, report cleanly.
+            if (albumRepository.findByName(cleaned).isPresent()) {
+                return ResponseEntity.badRequest().body("Album existe déjà");
+            }
+            log.error("Erreur ajout album", ex);
+            return ResponseEntity.internalServerError().body("Erreur ajout album");
+        }
+    }
+
+    @PostMapping("/albums/rename")
+    public ResponseEntity<String> renameAlbum(@RequestParam String oldName, @RequestParam String newName) {
+        String oldCleaned = oldName == null ? "" : oldName.trim();
+        String newCleaned = newName == null ? "" : newName.trim();
+
+        if (oldCleaned.isEmpty() || newCleaned.isEmpty()) {
+            return ResponseEntity.badRequest().body("Noms invalides");
+        }
+
+        if (oldCleaned.equalsIgnoreCase(newCleaned)) {
+            return ResponseEntity.ok("Aucun changement");
+        }
+
+        Album source = albumRepository.findByName(oldCleaned)
+                .orElseThrow(() -> new RuntimeException("Album introuvable"));
+
+        Optional<Album> targetOpt = albumRepository.findByName(newCleaned);
+        if (targetOpt.isPresent()) {
+            Album target = targetOpt.get();
+            List<Video> touched = new ArrayList<>();
+            for (Video video : new ArrayList<>(source.getVideos())) {
+                video.getAlbums().remove(source);
+                video.getAlbums().add(target);
+                touched.add(video);
+            }
+            videoRepository.saveAll(touched);
+            albumRepository.delete(source);
+            return ResponseEntity.ok("Album fusionné");
+        }
+
+        source.setName(newCleaned);
+        albumRepository.save(source);
+        return ResponseEntity.ok("Album renommé");
+    }
+
+    @DeleteMapping("/albums")
+    public ResponseEntity<String> deleteAlbum(@RequestParam String name) {
+        String cleaned = name == null ? "" : name.trim();
+        if (cleaned.isEmpty()) {
+            return ResponseEntity.badRequest().body("Nom album requis");
+        }
+
+        Album album = albumRepository.findByName(cleaned)
+                .orElseThrow(() -> new RuntimeException("Album introuvable"));
+
+        List<Video> touched = new ArrayList<>();
+        for (Video video : new ArrayList<>(album.getVideos())) {
+            video.getAlbums().remove(album);
+            touched.add(video);
+        }
+        if (!touched.isEmpty()) {
+            videoRepository.saveAll(touched);
+        }
+
+        albumRepository.delete(album);
+        return ResponseEntity.ok("Album supprimé");
     }
 
     // ========================

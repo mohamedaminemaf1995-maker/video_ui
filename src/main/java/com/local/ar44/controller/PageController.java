@@ -35,4 +35,12 @@ public class PageController {
         }
         return "recently";
     }
+
+    @GetMapping("/settings")
+    public Object settings(HttpSession session) {
+        if (session.getAttribute("authenticated") == null || !(boolean) session.getAttribute("authenticated")) {
+            return new RedirectView("/login", true);
+        }
+        return "settings";
+    }
 }

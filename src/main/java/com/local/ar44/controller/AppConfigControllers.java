@@ -24,8 +24,9 @@ public class AppConfigControllers {
 
     // 🔹 POST → modifier le host
     @GetMapping("/host/set")
-    public ResponseEntity<String> setHost(@RequestParam String host) {
+    public ResponseEntity<String> setHost(@RequestParam String host, HttpSession session) {
         service.setHost(host);
+        session.setAttribute("mediaHost", host);
         return ResponseEntity.ok("Host mis à jour : " + host);
     }
 
