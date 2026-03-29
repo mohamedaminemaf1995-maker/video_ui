@@ -468,6 +468,7 @@
                     <div id="playerSubtitle" style="font-size:13px; color:#94a3b8;">Cliquez sur les contrôles ou utilisez les flèches ↔ et PageUp/PageDown</div>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <button type="button" onclick="closePlayer()" title="Fermer" style="background:rgba(15,23,42,0.75); color:#e2e8f0; border:1px solid rgba(148,163,184,0.35); border-radius:8px; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px;">✕</button>
                     <div style="display:flex; align-items:center; gap:6px; background:rgba(59,130,246,0.15); padding:6px 12px; border-radius:8px; border:1px solid rgba(59,130,246,0.2);">
                         <span style="font-size:12px; color:#94a3b8;">Favoris:</span>
                         <strong id="playerFavoriteState" style="color:#60a5fa;">Non</strong>
@@ -486,7 +487,7 @@
                 </div>
 
                 <!-- Level Horizontal Compact -->
-                <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 0 8px;">Niveau:</label>
+                <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 0 8px;">:</label>
                 <select id="levelSelect" style="background:rgba(11,17,36,0.8); color:#e0f2fe; border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer; transition:all 0.2s ease; height:28px;">
                     <option value="1">1</option>
                     <option value="2">2</option>
@@ -812,7 +813,9 @@
         document.getElementById('playerDuration').textContent = `${formatDuration(video.durationMs)} / ${formatDuration(video.durationMs || 0)}`;
         document.getElementById('playerFavoriteState').textContent = video.favorite ? 'Oui' : 'Non';
 
-        document.getElementById('mainPlayer').src = video.url || '';
+        const player = document.getElementById('mainPlayer');
+        player.pause();
+        player.src = video.url || '';
         document.getElementById('playerModal').style.display = 'flex';
 
         // Build album checkboxes
@@ -1111,6 +1114,12 @@
         } else if (e.key === 'ArrowLeft') {
             seekBy(-10);
         } else if (e.key === 'Escape') {
+            closePlayer();
+        }
+    });
+
+    document.getElementById('playerModal')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
             closePlayer();
         }
     });
