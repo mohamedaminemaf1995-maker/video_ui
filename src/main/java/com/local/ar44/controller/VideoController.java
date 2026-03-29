@@ -145,22 +145,18 @@ public class VideoController {
     // 🔍 FILTERS
     // ========================
     // ========================
-    // 🕒 RECENTLY WATCHED (Mock: dernières 30 vidéos par date de création ou favoriteAt)
+    // 🕒 RECENTLY WATCHED
     // ========================
     @GetMapping("/recently-watched")
     public List<VideoResponse> getRecentlyWatched(HttpSession session) {
         String host = resolveHost(session);
-        // Mock: on prend les 30 dernières vidéos créées ou modifiées (favoriteAt ou createdAt)
-        List<Video> all = videoRepository.findAll();
-        all.sort((a, b) -> {
-            LocalDateTime da = a.getFavoriteAt() != null ? a.getFavoriteAt() : a.getCreatedAt();
-            LocalDateTime db = b.getFavoriteAt() != null ? b.getFavoriteAt() : b.getCreatedAt();
-            if (da == null && db == null) return 0;
-            if (da == null) return 1;
-            if (db == null) return -1;
-            return db.compareTo(da);
-        });
-        return all.stream().limit(30).map(v -> toResponse(v, host)).toList();
+        return videoRepository.findAll()
+                .stream()
+                .filter(video -> video.getLastWatchedAt() != null)
+                .sorted(Comparator.comparing(Video::getLastWatchedAt).reversed())
+                .limit(20)
+                .map(v -> toResponse(v, host))
+                .toList();
     }
 
     @GetMapping("/by-creator")
@@ -252,12 +248,13 @@ public class VideoController {
     // ✏️ UPDATE VIDEO
     // ========================
     @GetMapping("/update")
-    public Video updateVideo(
+        public VideoResponse updateVideo(
             @RequestParam Long id,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String creator,
             @RequestParam(required = false) String album,
-            @RequestParam(required = false) Integer sourceIndex
+            @RequestParam(required = false) Integer sourceIndex,
+            HttpSession session
     ) {
         Video v = videoRepository.findById(id).orElseThrow();
 
@@ -269,12 +266,13 @@ public class VideoController {
             v.setSourceIndex(requested);
         }
 
-        return videoRepository.save(v);
+        Video saved = videoRepository.save(v);
+        return toResponse(saved, resolveHost(session));
     }
 
     // New RESTful update using JSON body
     @PutMapping("/{id}")
-    public Video updateVideoPut(@PathVariable Long id, @RequestBody UpdateVideoRequest req) {
+    public VideoResponse updateVideoPut(@PathVariable Long id, @RequestBody UpdateVideoRequest req, HttpSession session) {
         Video v = videoRepository.findById(id).orElseThrow();
 
         if (req.getTitle() != null) v.setTitle(req.getTitle());
@@ -285,7 +283,8 @@ public class VideoController {
             v.setSourceIndex(requested);
         }
 
-        return videoRepository.save(v);
+        Video saved = videoRepository.save(v);
+        return toResponse(saved, resolveHost(session));
     }
 
     // ========================
@@ -389,6 +388,15 @@ public class VideoController {
         videoRepository.save(v);
 
         return "OK";
+    }
+
+    @PostMapping("/{id}/watched")
+    public ResponseEntity<Void> markWatched(@PathVariable Long id) {
+        Video video = videoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Video introuvable"));
+        video.setLastWatchedAt(LocalDateTime.now());
+        videoRepository.save(video);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/favorites")

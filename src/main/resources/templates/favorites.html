@@ -448,7 +448,7 @@
             Afficher
             <select id="pageSizeSelect" class="page-size-select" onchange="onPageSizeChange()">
                 <option value="20">20</option>
-                <option value="50">50</option>
+                <option value="50" selected>50</option>
                 <option value="100">100</option>
                 <option value="200">200</option>
             </select>
@@ -551,7 +551,7 @@
     let allVideos = [];
     let currentIndex = -1;
     let currentPage = 1;
-    let pageSize = 20;
+    let pageSize = 50;
     let selectedVideoIds = new Set();
 
     async function fetchJson(url) {
@@ -578,8 +578,8 @@
     }
 
     function getSelectedPageSize() {
-        const raw = Number(document.getElementById('pageSizeSelect')?.value || 20);
-        return Number.isFinite(raw) && raw > 0 ? raw : 20;
+        const raw = Number(document.getElementById('pageSizeSelect')?.value || 50);
+        return Number.isFinite(raw) && raw > 0 ? raw : 50;
     }
 
     function renderPagination(totalCount, totalPages) {
@@ -993,10 +993,17 @@
     }
 
     function initPlayerEvents() {
+    function markVideoAsWatched(videoId) {
+        if (!videoId) return;
+        fetch(`/api/videos/${videoId}/watched`, { method: 'POST' }).catch(error => {
+            console.error('Erreur mise a jour recently watched:', error);
+        });
+    }
         const player = document.getElementById('mainPlayer');
         const seek = document.getElementById('seekBar');
 
         player.addEventListener('ended', () => {
+        markVideoAsWatched(video.id);
             if (currentIndex < currentVideos.length - 1) {
                 playNext();
             }

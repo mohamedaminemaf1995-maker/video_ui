@@ -394,7 +394,7 @@
                 Afficher
                 <select id="pageSizeSelect" class="page-size-select" onchange="onPageSizeChange()">
                     <option value="20">20</option>
-                    <option value="50">50</option>
+                    <option value="50" selected>50</option>
                     <option value="100">100</option>
                     <option value="200">200</option>
                 </select>
@@ -484,7 +484,7 @@
     let allVideos = [];
     let currentIndex = -1;
     let currentPage = 1;
-    let pageSize = 20;
+    let pageSize = 50;
     async function fetchJson(url) {
         const res = await fetch(url);
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -584,9 +584,16 @@
         }
     }
 
+    function markVideoAsWatched(videoId) {
+        if (!videoId) return;
+        fetch(`/api/videos/${videoId}/watched`, { method: 'POST' }).catch(error => {
+            console.error('Erreur mise a jour recently watched:', error);
+        });
+    }
+
     function getSelectedPageSize() {
-        const raw = Number(document.getElementById('pageSizeSelect')?.value || 20);
-        return Number.isFinite(raw) && raw > 0 ? raw : 20;
+        const raw = Number(document.getElementById('pageSizeSelect')?.value || 50);
+        return Number.isFinite(raw) && raw > 0 ? raw : 50;
     }
 
     function renderPagination(totalCount, totalPages) {
@@ -742,6 +749,7 @@
         document.getElementById('playerFavoriteState').textContent = video.favorite ? 'Oui' : 'Non';
         document.getElementById('mainPlayer').src = video.url || '';
         document.getElementById('playerModal').style.display = 'flex';
+        markVideoAsWatched(video.id);
         const videoAlbums = Array.isArray(video.albums) ? video.albums : [];
         const container = document.getElementById('albumCheckboxesContainer');
         container.innerHTML = '';

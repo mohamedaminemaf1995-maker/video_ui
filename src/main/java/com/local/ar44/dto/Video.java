@@ -37,5 +37,6 @@ public class Video {
     private LocalDateTime createdAt;
     private Boolean favorite = false;
     private LocalDateTime favoriteAt;
+    private LocalDateTime lastWatchedAt;
     private Integer favoriteOrder; // new field to store explicit order in favorites/playlists
 }
