@@ -273,6 +273,141 @@
             opacity: 0.45;
             cursor: not-allowed;
         }
+
+        .yt-controls {
+            padding: 10px 12px;
+            background: linear-gradient(90deg, #0a1020, #12213c);
+            border-top: 1px solid rgba(59,130,246,0.28);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .yt-progress-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .yt-time {
+            font-size: 12px;
+            color: #93c5fd;
+            min-width: 42px;
+            text-align: center;
+        }
+
+        .yt-seek {
+            flex: 1;
+            accent-color: #0080ff;
+            height: 4px;
+        }
+
+        .yt-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .yt-actions-left,
+        .yt-actions-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .yt-btn {
+            background: rgba(30, 41, 59, 0.85);
+            color: #e2e8f0;
+            border: 1px solid rgba(148,163,184,0.28);
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.15s ease;
+        }
+
+        .yt-btn:hover {
+            transform: translateY(-1px);
+            background: rgba(37, 99, 235, 0.35);
+        }
+
+        .yt-range {
+            width: 92px;
+            accent-color: #0080ff;
+        }
+
+        .yt-select {
+            background: rgba(15,23,42,0.9);
+            color: #e2e8f0;
+            border: 1px solid rgba(148,163,184,0.35);
+            border-radius: 7px;
+            padding: 5px 8px;
+            font-size: 12px;
+        }
+
+        .yt-seek-wrap {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .seek-preview {
+            position: absolute;
+            bottom: 18px;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(148,163,184,0.35);
+            color: #dbeafe;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 6px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.12s ease;
+            white-space: nowrap;
+        }
+
+        .seek-preview.visible {
+            opacity: 1;
+        }
+
+        .player-shell {
+            position: relative;
+        }
+
+        .buffering-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 46px;
+            height: 46px;
+            margin-left: -23px;
+            margin-top: -23px;
+            border: 4px solid rgba(255,255,255,0.25);
+            border-top-color: #0080ff;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+            display: none;
+            z-index: 4;
+        }
+
+        .buffering-indicator.show {
+            display: block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .player-shell.theater {
+            width: 96% !important;
+            max-width: 1500px !important;
+        }
     </style>
 </head>
 <body>
@@ -324,7 +459,7 @@
 </div>
 
 <div id="playerModal" class="player-modal">
-    <div style="width:82%; max-width:1100px; background:linear-gradient(135deg, #0b1225, #0f172a); border-radius:16px; overflow:hidden; border:1px solid rgba(59,130,246,0.3);">
+    <div id="playerShell" class="player-shell" style="width:82%; max-width:1100px; background:linear-gradient(135deg, #0b1225, #0f172a); border-radius:16px; overflow:hidden; border:1px solid rgba(59,130,246,0.3);">
         <!-- Modal Header -->
         <div style="padding:20px 24px; background:linear-gradient(90deg, #0c1429, #132a4a); border-bottom:1px solid rgba(59,130,246,0.2);">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
@@ -368,37 +503,44 @@
         </div>
 
         <!-- Video Player -->
-        <video id="mainPlayer" controls autoplay style="width:100%; max-height:75vh; background:black; display:block;"></video>
+        <video id="mainPlayer" autoplay style="width:100%; max-height:75vh; background:black; display:block;"></video>
+        <div id="bufferingIndicator" class="buffering-indicator"></div>
 
-        <!-- Modal Footer: Controls -->
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:linear-gradient(90deg, #0c1429, #132a4a); border-top:1px solid rgba(59,130,246,0.2); gap:6px; flex-wrap:wrap;">
-            <!-- Playback Controls -->
-            <div style="display:flex; gap:4px; align-items:center;">
-                <button id="prevBtn" onclick="playPrevious()" title="Précédent" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
-                    ⏮
-                </button>
-                <button onclick="seekBy(-10)" title="-10s" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
-                    ◀
-                </button>
-                <button onclick="playOrPause()" id="playPauseBtn" title="Play/Pause" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 7px; border-radius:5px; cursor:pointer; font-weight:700; font-size:12px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
-                    ▶
-                </button>
-                <button onclick="seekBy(10)" title="+10s" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
-                    ▶️
-                </button>
-                <button id="nextBtn" onclick="playNext()" title="Suivant" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
-                    ⏭
-                </button>
+        <div class="yt-controls">
+            <div class="yt-progress-row">
+                <span id="currentTime" class="yt-time">00:00</span>
+                <div class="yt-seek-wrap">
+                    <input id="seekBar" class="yt-seek" type="range" min="0" max="100" step="0.1" value="0" oninput="onSeekBarInput(this.value)">
+                    <span id="seekPreview" class="seek-preview">00:00</span>
+                </div>
+                <span id="totalTime" class="yt-time">00:00</span>
             </div>
 
-            <!-- Action Buttons -->
-            <div style="display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;">
-                <button id="favoriteModalBtn" onclick="toggleFavoriteModal(currentVideos[currentIndex]?.id, this)" title="Favori" style="background:linear-gradient(135deg, #ec4899, #db2777); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:12px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(236,72,153,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #db2777, #be185d)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #ec4899, #db2777)';this.style.transform='scale(1)'">
-                    ♥
-                </button>
-                <button onclick="closePlayer()" title="Fermer" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 6px; border-radius:5px; cursor:pointer; font-weight:600; font-size:11px; transition:all 0.2s ease; box-shadow:0 1px 4px rgba(59,130,246,0.25);" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
-                    ✕
-                </button>
+            <div class="yt-actions">
+                <div class="yt-actions-left">
+                    <button id="playPauseBtn" class="yt-btn" onclick="playOrPause()">▶</button>
+                    <button class="yt-btn" onclick="seekBy(-10)">-10s</button>
+                    <button class="yt-btn" onclick="seekBy(10)">+10s</button>
+                    <button id="prevBtn" class="yt-btn" onclick="playPrevious()">Préc</button>
+                    <button id="nextBtn" class="yt-btn" onclick="playNext()">Suiv</button>
+                    <button id="muteBtn" class="yt-btn" onclick="toggleMute()">🔊</button>
+                    <input id="volumeSlider" class="yt-range" type="range" min="0" max="1" step="0.01" value="1" oninput="setVolume(this.value)">
+                </div>
+
+                <div class="yt-actions-right">
+                    <select id="speedSelect" class="yt-select" onchange="changeSpeed(this.value)">
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2x</option>
+                    </select>
+                    <button id="theaterBtn" class="yt-btn" onclick="toggleTheaterMode()">Théâtre</button>
+                    <button id="fullScreenBtn" class="yt-btn" onclick="toggleFullScreen()">Plein écran</button>
+                    <button id="favoriteModalBtn" class="yt-btn" onclick="toggleFavoriteModal(currentVideos[currentIndex]?.id, this)">Favori</button>
+                    <button class="yt-btn" onclick="closePlayer()">Fermer</button>
+                </div>
             </div>
         </div>
     </div>
@@ -746,6 +888,100 @@
         setStatus(`Position vidéo : ${Math.round(target)}s`);
     }
 
+    function formatClock(seconds) {
+        if (!Number.isFinite(seconds)) return '00:00';
+        const s = Math.floor(seconds);
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;
+    }
+
+    function updateTimeline() {
+        const player = document.getElementById('mainPlayer');
+        const seek = document.getElementById('seekBar');
+        const cur = document.getElementById('currentTime');
+        const total = document.getElementById('totalTime');
+        if (!player || !seek || !cur || !total) return;
+        const duration = Number.isFinite(player.duration) ? player.duration : 0;
+        const current = Number.isFinite(player.currentTime) ? player.currentTime : 0;
+        seek.value = duration > 0 ? (current / duration) * 100 : 0;
+        cur.textContent = formatClock(current);
+        total.textContent = formatClock(duration);
+    }
+
+    function onSeekBarInput(value) {
+        const player = document.getElementById('mainPlayer');
+        if (!player || !Number.isFinite(player.duration)) return;
+        player.currentTime = (Number(value) / 100) * player.duration;
+    }
+
+    function updateSeekPreviewFromEvent(event) {
+        const seek = document.getElementById('seekBar');
+        const preview = document.getElementById('seekPreview');
+        const player = document.getElementById('mainPlayer');
+        if (!seek || !preview || !player || !Number.isFinite(player.duration)) return;
+        const rect = seek.getBoundingClientRect();
+        const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+        const ratio = rect.width > 0 ? x / rect.width : 0;
+        preview.style.left = `${x}px`;
+        preview.textContent = formatClock(player.duration * ratio);
+        preview.classList.add('visible');
+    }
+
+    function hideSeekPreview() {
+        const preview = document.getElementById('seekPreview');
+        if (preview) preview.classList.remove('visible');
+    }
+
+    function setBuffering(active) {
+        const indicator = document.getElementById('bufferingIndicator');
+        if (!indicator) return;
+        indicator.classList.toggle('show', !!active);
+    }
+
+    function setVolume(value) {
+        const player = document.getElementById('mainPlayer');
+        if (!player) return;
+        player.volume = Math.max(0, Math.min(1, Number(value)));
+        player.muted = player.volume === 0;
+        const muteBtn = document.getElementById('muteBtn');
+        if (muteBtn) muteBtn.textContent = player.muted ? '🔇' : '🔊';
+    }
+
+    function toggleMute() {
+        const player = document.getElementById('mainPlayer');
+        if (!player) return;
+        player.muted = !player.muted;
+        const muteBtn = document.getElementById('muteBtn');
+        const volume = document.getElementById('volumeSlider');
+        if (muteBtn) muteBtn.textContent = player.muted ? '🔇' : '🔊';
+        if (volume) volume.value = player.muted ? 0 : player.volume;
+    }
+
+    function changeSpeed(value) {
+        const player = document.getElementById('mainPlayer');
+        if (!player) return;
+        player.playbackRate = Number(value) || 1;
+    }
+
+    function toggleTheaterMode() {
+        const shell = document.getElementById('playerShell');
+        if (!shell) return;
+        shell.classList.toggle('theater');
+    }
+
+    function toggleFullScreen() {
+        const video = document.getElementById('mainPlayer');
+        if (!video) return;
+        if (!document.fullscreenElement) {
+            if (video.requestFullscreen) video.requestFullscreen();
+            else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+        } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        }
+    }
+
     function playOrPause() {
         const player = document.getElementById('mainPlayer');
         if (!player) return;
@@ -758,6 +994,7 @@
 
     function initPlayerEvents() {
         const player = document.getElementById('mainPlayer');
+        const seek = document.getElementById('seekBar');
 
         player.addEventListener('ended', () => {
             if (currentIndex < currentVideos.length - 1) {
@@ -774,6 +1011,27 @@
             const btn = document.getElementById('playPauseBtn');
             if (btn) btn.textContent = '▶';
         });
+
+        player.addEventListener('timeupdate', updateTimeline);
+        player.addEventListener('loadedmetadata', updateTimeline);
+        player.addEventListener('volumechange', () => {
+            const muteBtn = document.getElementById('muteBtn');
+            const volume = document.getElementById('volumeSlider');
+            if (muteBtn) muteBtn.textContent = player.muted ? '🔇' : '🔊';
+            if (volume) volume.value = player.muted ? 0 : player.volume;
+        });
+
+        player.addEventListener('waiting', () => setBuffering(true));
+        player.addEventListener('stalled', () => setBuffering(true));
+        player.addEventListener('seeking', () => setBuffering(true));
+        player.addEventListener('playing', () => setBuffering(false));
+        player.addEventListener('canplay', () => setBuffering(false));
+        player.addEventListener('seeked', () => setBuffering(false));
+
+        if (seek) {
+            seek.addEventListener('mousemove', updateSeekPreviewFromEvent);
+            seek.addEventListener('mouseleave', hideSeekPreview);
+        }
     }
 
     function closePlayer() { 
@@ -781,6 +1039,12 @@
         p.pause(); 
         p.src=''; 
         document.getElementById('playerModal').style.display='none'; 
+        const seek = document.getElementById('seekBar');
+        if (seek) seek.value = 0;
+        const cur = document.getElementById('currentTime');
+        if (cur) cur.textContent = '00:00';
+        hideSeekPreview();
+        setBuffering(false);
         currentIndex = -1;
     }
     
