@@ -1,13 +1,22 @@
+
 package com.local.ar44.dto;
 
 import java.util.List;
 
 public class UpdateVideoRequest {
     private String title;
-    private String creator;
+    private List<Long> creatorIds;
     private List<String> albums;
     private Integer sourceIndex;
+    private List<String> creatorNames;
 
+
+    public List<String> getCreatorNames() {
+        return creatorNames;
+    }
+    public void setCreatorNames(List<String> creatorNames) {
+        this.creatorNames = creatorNames;
+    }
     public String getTitle() {
         return title;
     }
@@ -16,12 +25,12 @@ public class UpdateVideoRequest {
         this.title = title;
     }
 
-    public String getCreator() {
-        return creator;
+    public List<Long> getCreatorIds() {
+        return creatorIds;
     }
 
-    public void setCreator(String creator) {
-        this.creator = creator;
+    public void setCreatorIds(List<Long> creatorIds) {
+        this.creatorIds = creatorIds;
     }
 
     public List<String> getAlbums() {

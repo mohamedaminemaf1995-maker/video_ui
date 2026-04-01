@@ -10,7 +10,7 @@ public class VideoResponse {
     private String fileName;
     private String url;
     private Long durationMs;
-    private String creator;
+    private List<String> creators;
     private List<String> albums;
     private Integer sourceIndex;
     private Boolean favorite;

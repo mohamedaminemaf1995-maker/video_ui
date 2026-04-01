@@ -22,7 +22,13 @@ public class Video {
     private String fileName;
     private Long durationMs;
     private String url;
-    private String creator;
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "video_creator",
+        joinColumns = @JoinColumn(name = "video_id"),
+        inverseJoinColumns = @JoinColumn(name = "creator_id")
+    )
+    private Set<Creator> creators = new HashSet<>();
     
     @ManyToMany(cascade = CascadeType.PERSIST, fetch = FetchType.EAGER)
     @JoinTable(

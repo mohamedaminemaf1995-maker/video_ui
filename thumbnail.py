@@ -23,7 +23,7 @@ DB_CONFIG = {
 OUTPUT_DIR = "thumbnails"
 FFMPEG_PATH = "ffmpeg"
 
-CAPTURE_TIME = "00:00:02"
+CAPTURE_TIME = "00:00:10"
 THUMBNAIL_SIZE = "240:-1"   # ex: 160:-1 / 320:-1 / 640:-1
 JPEG_QUALITY = "6"          # plus grand = plus léger, 2 = meilleure qualité
 OVERWRITE = False

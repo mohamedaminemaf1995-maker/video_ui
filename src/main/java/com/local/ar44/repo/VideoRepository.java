@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface VideoRepository extends JpaRepository<Video, Long> {
-    List<Video> findByCreatorIgnoreCase(String creator);
+    // List<Video> findByCreatorIgnoreCase(String creator); // supprimé : plus de champ creator
     List<Video> findByTitleContainingIgnoreCase(String title);
     List<Video> findByFavoriteTrue();
     List<Video> findByFavoriteTrueOrderByFavoriteAtDesc();
@@ -22,6 +22,6 @@ public interface VideoRepository extends JpaRepository<Video, Long> {
     // Trouve la video favorite ayant le plus grand favoriteOrder
     Optional<Video> findTopByFavoriteTrueOrderByFavoriteOrderDesc();
 
-    @Query("select distinct v.creator from Video v where v.creator is not null order by v.creator")
-    List<String> findDistinctCreators();
+    // @Query supprimé : plus de champ creator
+    // List<String> findDistinctCreators();
 }

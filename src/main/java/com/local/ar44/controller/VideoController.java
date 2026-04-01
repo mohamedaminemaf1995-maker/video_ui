@@ -5,6 +5,7 @@ import com.local.ar44.dto.Album;
 import com.local.ar44.dto.AlbumStats;
 import com.local.ar44.dto.AppConfig;
 import com.local.ar44.dto.UpdateVideoRequest;
+import com.local.ar44.dto.Creator;
 import com.local.ar44.dto.Video;
 import com.local.ar44.dto.VideoResponse;
 import com.local.ar44.repo.AlbumRepository;
@@ -38,6 +39,7 @@ public class VideoController {
     private final VideoRepository videoRepository;
     private final AppConfigRepository appConfigRepository;
     private final AlbumRepository albumRepository;
+        private final com.local.ar44.service.CreatorService creatorService;
     private final StatsService statsService;
     private final ThumbnailStorageService thumbnailStorageService;
 
@@ -48,12 +50,14 @@ public class VideoController {
                            AppConfigRepository appConfigRepository,
                            AlbumRepository albumRepository,
                            StatsService statsService,
-                           ThumbnailStorageService thumbnailStorageService) {
+                           ThumbnailStorageService thumbnailStorageService,
+                           com.local.ar44.service.CreatorService creatorService) {
         this.videoRepository = videoRepository;
         this.appConfigRepository = appConfigRepository;
         this.albumRepository = albumRepository;
         this.statsService = statsService;
         this.thumbnailStorageService = thumbnailStorageService;
+        this.creatorService = creatorService;
     }
 
     // ========================
@@ -62,7 +66,7 @@ public class VideoController {
     private String resolveHost(HttpSession session) {
         String host = (String) session.getAttribute("mediaHost");
 
-        if (host == null || host.isBlank()) {
+        if (host == null || host.isEmpty()) {
             host = appConfigRepository.findAll()
                     .stream()
                     .findFirst()
@@ -82,7 +86,7 @@ public class VideoController {
         String fileName = video.getFileName();
 
         // 🔥 fallback automatique
-        if (fileName == null || fileName.isBlank()) {
+        if (fileName == null || fileName.isEmpty()) {
             fileName = video.getTitle();
         }
 
@@ -91,7 +95,13 @@ public class VideoController {
         response.setTitle(video.getTitle());
         response.setFileName(fileName);
         response.setDurationMs(video.getDurationMs());
-        response.setCreator(video.getCreator());
+        response.setCreators(
+            video.getCreators() == null ? List.of() :
+            video.getCreators().stream()
+                .map(Creator::getName)
+                .sorted()
+                .toList()
+        );
         response.setAlbums(video.getAlbums().stream()
                 .map(Album::getName)
                 .sorted()
@@ -111,11 +121,11 @@ public class VideoController {
 
     private void assignAlbumsToVideo(Video video, String albumString) {
         video.getAlbums().clear();
-        if (albumString != null && !albumString.isBlank()) {
+        if (albumString != null && !albumString.isEmpty()) {
             String[] albumNames = albumString.split(",");
             for (String albumName : albumNames) {
                 String trimmed = albumName.trim();
-                if (!trimmed.isBlank()) {
+                if (!trimmed.isEmpty()) {
                     Album a = findOrCreateAlbumSafe(trimmed);
                     video.getAlbums().add(a);
                 }
@@ -199,11 +209,8 @@ public class VideoController {
 
     @GetMapping("/by-creator")
     public List<VideoResponse> getByCreator(@RequestParam String creator, HttpSession session) {
-        String host = resolveHost(session);
-        return videoRepository.findByCreatorIgnoreCase(creator)
-                .stream()
-                .map(v -> toResponse(v, host))
-                .toList();
+        // TODO: Adapter la recherche par creator (ManyToMany)
+        return List.of();
     }
 
     @GetMapping("/by-album")
@@ -230,17 +237,12 @@ public class VideoController {
 
     @GetMapping("/creators")
     public List<String> getCreators() {
-        List<String> creators = videoRepository.findDistinctCreators()
-                .stream()
-                .filter(c -> c != null && !c.isBlank())
+        // Retourne la liste des noms de tous les créateurs (ManyToMany)
+        return creatorService.findAll().stream()
+                .map(Creator::getName)
+                .filter(n -> n != null && !n.isBlank())
+                .sorted()
                 .toList();
-
-        // Si aucun créateur enregistré, proposer un élément de retour pour filtrer les inconnus
-        if (creators.isEmpty()) {
-            return List.of("Unknown");
-        }
-
-        return creators;
     }
 
     @GetMapping("/albums")
@@ -358,7 +360,7 @@ public class VideoController {
         Video v = new Video();
         v.setFileName(fileName);
         v.setTitle(title != null ? title : fileName);
-        v.setCreator(creator);
+        // Suppression de setCreator obsolète
         assignAlbumsToVideo(v, album);
         v.setDurationMs(duration);
 
@@ -380,7 +382,7 @@ public class VideoController {
         Video v = videoRepository.findById(id).orElseThrow();
 
         if (title != null) v.setTitle(title);
-        if (creator != null) v.setCreator(creator);
+        // Suppression de setCreator obsolète
         if (album != null) assignAlbumsToVideo(v, album);
         if (sourceIndex != null) {
             int requested = Math.max(0, Math.min(5, sourceIndex));
@@ -397,7 +399,22 @@ public class VideoController {
         Video v = videoRepository.findById(id).orElseThrow();
 
         if (req.getTitle() != null) v.setTitle(req.getTitle());
-        if (req.getCreator() != null) v.setCreator(req.getCreator());
+        // Gestion creators par IDs (héritage)
+        if (req.getCreatorIds() != null) {
+            Set<com.local.ar44.dto.Creator> creators = new HashSet<>();
+            for (Long creatorId : req.getCreatorIds()) {
+                creatorService.findById(creatorId).ifPresent(creators::add);
+            }
+            v.setCreators(creators);
+        }
+        // Gestion creators par noms (nouvelle UI avancée)
+        if (req.getCreatorNames() != null) {
+            Set<com.local.ar44.dto.Creator> creators = new HashSet<>();
+            for (String name : req.getCreatorNames()) {
+                creatorService.findByName(name).ifPresent(creators::add);
+            }
+            v.setCreators(creators);
+        }
         if (req.getAlbums() != null) assignAlbumsToVideo(v, req.getAlbums());
         if (req.getSourceIndex() != null) {
             int requested = Math.max(0, Math.min(5, req.getSourceIndex()));

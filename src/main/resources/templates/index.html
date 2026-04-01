@@ -4,6 +4,40 @@
     <meta charset="UTF-8">
     <title>Arcad - Video Library</title>
     <style>
+                        .creator-badge.selected {
+                            background: linear-gradient(90deg, #0ea5e9, #6366f1);
+                            color: #fff;
+                            border: 1px solid #38bdf8;
+                            margin-right: 4px;
+                            margin-bottom: 2px;
+                            padding-right: 6px;
+                            position: relative;
+                        }
+                        .creator-badge.selected .remove-badge {
+                            margin-left: 6px;
+                            color: #f43f5e;
+                            cursor: pointer;
+                            font-weight: bold;
+                            font-size: 13px;
+                        }
+                .creator-badge {
+                    display: inline-block;
+                    background: linear-gradient(90deg, #38bdf8, #6366f1);
+                    color: #fff;
+                    font-size: 11px;
+                    font-weight: 600;
+                    border-radius: 8px;
+                    padding: 2px 10px;
+                    margin-right: 4px;
+                    margin-bottom: 2px;
+                    box-shadow: 0 2px 6px rgba(59,130,246,0.13);
+                    letter-spacing: 0.02em;
+                    transition: background 0.18s, color 0.18s;
+                }
+                .creator-badge:hover {
+                    background: linear-gradient(90deg, #2563eb, #38bdf8);
+                    color: #e0e8f0;
+                }
         * {
             box-sizing: border-box;
         }
@@ -585,6 +619,8 @@
         }
 
         function getSelectedSourceIndex() {
+            // La valeur du filtre étoiles est déjà inversée :
+            // 1 = 5 étoiles, 2 = 4 étoiles, ..., 5 = 1 étoile
             return document.getElementById('sourceIndexSelect').value;
         }
 
@@ -710,6 +746,9 @@
 
                 const thumbUrl = `/api/videos/thumbnail?id=${v.id}`;
 
+                const creators = Array.isArray(v.creators) && v.creators.length > 0
+                    ? v.creators.map(name => `<span class="creator-badge">${name}</span>`).join('')
+                    : '<span class="creator-badge" style="background:#64748b;">Unknown</span>';
                 card.innerHTML = `
     <div style="position:relative;">
         <div class="favorite-icon ${v.favorite ? 'favorite-active' : ''}" onclick="toggleFavoriteModal(${v.id}, this)">♥</div>
@@ -718,9 +757,9 @@
         <div class="video-overlay">
             <div class="video-title" title="${v.title ?? ''}">${v.title ?? ''}</div>
             <div class="video-meta">
-                ${(v.creator ?? 'Unknown')}
+                ${creators}
                 ${Array.isArray(v.albums) && v.albums.length > 0 ? '• ' + v.albums.join(', ') : ''}
-                ${v.sourceIndex != null ? '• ' + v.sourceIndex : ''}
+                <span class="level-stars">${renderLevelStars(v.sourceIndex)}</span>
             </div>
         </div>
         <div class="video-duration">${formatDuration(v.durationMs)}</div>
@@ -730,6 +769,18 @@
             });
 
             renderPagination(allVideos.length, totalPages);
+
+        // Fonction utilitaire pour afficher les étoiles inversées
+        function renderLevelStars(level) {
+            let html = '';
+            const val = (typeof level === 'number' && level >= 1 && level <= 5) ? level : 1;
+            // 1 = 5 étoiles, 2 = 4, ... 5 = 1 étoile
+            const stars = 6 - val;
+            for (let i = 1; i <= 5; i++) {
+                html += `<span style="color:${i <= stars ? '#facc15' : '#334155'};font-size:15px;">★</span>`;
+            }
+            return html;
+        }
         }
 
         async function toggleFavoriteModal(videoId, button) {
@@ -761,11 +812,7 @@
                 }
 
                 if (creator) {
-                    if (creator === 'Unknown') {
-                        videos = videos.filter(v => !v.creator || v.creator.trim() === '');
-                    } else {
-                        videos = videos.filter(v => (v.creator || '') === creator);
-                    }
+                    videos = videos.filter(v => Array.isArray(v.creators) && v.creators.includes(creator));
                 }
 
                 if (sourceIndex) {
@@ -1296,7 +1343,6 @@
             const videoAlbums = Array.isArray(video.albums) ? video.albums : [];
             const container = document.getElementById('albumCheckboxesContainer');
             container.innerHTML = '';
-
             const albumSelect = document.getElementById('albumSelect');
             Array.from(albumSelect.options).forEach(opt => {
                 if (!opt.value) return; // skip "Tous"
@@ -1313,7 +1359,6 @@
                 label.style.borderRadius = '5px';
                 label.style.whiteSpace = 'nowrap';
                 label.style.transition = 'all 0.2s ease';
-
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.value = opt.value;
@@ -1321,7 +1366,6 @@
                 checkbox.style.cursor = 'pointer';
                 checkbox.style.width = '14px';
                 checkbox.style.height = '14px';
-
                 label.appendChild(checkbox);
                 label.appendChild(document.createTextNode(opt.value));
                 label.addEventListener('mouseenter', () => {
@@ -1335,9 +1379,99 @@
                 container.appendChild(label);
             });
 
+
+            // --- Creators MULTISELECT ---
+            // --- Creators MULTISELECT ---
+            function renderCreatorBadgesAndSelect(allCreators, video, index) {
+                const creatorZone = document.getElementById('creatorBadgesContainer');
+                creatorZone.innerHTML = '';
+                // Utilise la sélection persistée si dispo, sinon la valeur initiale
+                let selectedCreators = Array.isArray(video._selectedCreators)
+                    ? video._selectedCreators
+                    : (Array.isArray(video.creators) ? [...video.creators] : []);
+                // Affichage des badges sélectionnés
+                selectedCreators.forEach(name => {
+                    const badge = document.createElement('span');
+                    badge.className = 'creator-badge selected';
+                    badge.textContent = name;
+                    const remove = document.createElement('span');
+                    remove.className = 'remove-badge';
+                    remove.textContent = '×';
+                    remove.onclick = () => {
+                        const idx = selectedCreators.indexOf(name);
+                        if (idx !== -1) selectedCreators.splice(idx, 1);
+                        video._selectedCreators = selectedCreators;
+                        renderCreatorBadgesAndSelect(allCreators, video, index);
+                    };
+                    badge.appendChild(remove);
+                    creatorZone.appendChild(badge);
+                });
+                // Sélecteur d’ajout
+                const addSelect = document.createElement('select');
+                addSelect.style.marginLeft = '8px';
+                addSelect.style.background = 'rgba(11,17,36,0.8)';
+                addSelect.style.color = '#e0f2fe';
+                addSelect.style.border = '1px solid rgba(59,130,246,0.3)';
+                addSelect.style.borderRadius = '6px';
+                addSelect.style.padding = '4px 8px';
+                addSelect.style.fontSize = '12px';
+                addSelect.style.cursor = 'pointer';
+                addSelect.innerHTML = '<option value="">+ Ajouter un creator</option>';
+                allCreators.forEach(c => {
+                    const name = typeof c === 'string' ? c : c.name;
+                    if (!selectedCreators.includes(name)) {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = name;
+                        addSelect.appendChild(opt);
+                    }
+                });
+                addSelect.onchange = () => {
+                    if (addSelect.value && !selectedCreators.includes(addSelect.value)) {
+                        selectedCreators.push(addSelect.value);
+                        video._selectedCreators = selectedCreators;
+                        renderCreatorBadgesAndSelect(allCreators, video, index);
+                    }
+                };
+                creatorZone.appendChild(addSelect);
+                // Stocke la sélection pour la sauvegarde
+                video._selectedCreators = selectedCreators;
+            }
+
+            fetchJson('/api/videos/creators')
+                .then(allCreators => {
+                    renderCreatorBadgesAndSelect(allCreators, video, index);
+                })
+                .catch(() => {
+                    document.getElementById('creatorBadgesContainer').innerHTML = '<span style="color:#f87171;">Erreur chargement créateurs</span>';
+                });
+
             const level = (video.sourceIndex != null && video.sourceIndex >= 1 && video.sourceIndex <= 5) ? video.sourceIndex : 1;
-            document.getElementById('levelSelect').value = level;
+            renderLevelStarsInModal(level);
             document.getElementById('levelValue').textContent = video.sourceIndex ?? 0;
+
+            function renderLevelStarsInModal(selectedLevel) {
+                const container = document.getElementById('levelStarsContainer');
+                container.innerHTML = '';
+                // Affichage inversé : 1 = 5 étoiles, 2 = 4, ... 5 = 1 étoile
+                const stars = 6 - selectedLevel;
+                for (let i = 1; i <= 5; i++) {
+                    const star = document.createElement('span');
+                    star.textContent = '★';
+                    star.style.cursor = 'pointer';
+                    star.style.fontSize = '22px';
+                    star.style.color = i <= stars ? '#facc15' : '#334155';
+                    // i=1 (gauche) => niveau 5, i=5 (droite) => niveau 1
+                    const levelValue = 6 - i;
+                    star.title = `${levelValue} étoile(s)`;
+                    star.onclick = () => {
+                        renderLevelStarsInModal(levelValue);
+                        video._selectedLevel = levelValue;
+                        document.getElementById('levelValue').textContent = levelValue;
+                    };
+                    container.appendChild(star);
+                }
+            }
 
             updatePlayerNavButtons();
         }
@@ -1351,44 +1485,40 @@
         // Unified save: send albums (array) and sourceIndex together via PUT /api/videos/{id}
         async function saveModalCombined() {
             if (currentIndex < 0 || !currentVideos[currentIndex]) return;
-
             const video = currentVideos[currentIndex];
-
             const container = document.getElementById('albumCheckboxesContainer');
             const selectedAlbums = Array.from(container.querySelectorAll('input[type="checkbox"]'))
                 .filter(cb => cb.checked)
                 .map(cb => cb.value.trim())
                 .filter(Boolean);
-
-            const newLevel = parseInt(document.getElementById('levelSelect').value, 10);
+            const newLevel = typeof video._selectedLevel === 'number' ? video._selectedLevel : level;
             const payload = {};
             if (selectedAlbums.length) payload.albums = selectedAlbums;
             if (!Number.isNaN(newLevel)) payload.sourceIndex = Math.max(0, Math.min(5, newLevel));
-
+            // Ajout creators multi
+            if (Array.isArray(video._selectedCreators) && video._selectedCreators.length > 0) {
+                // Il faut convertir les noms en IDs côté backend, ou adapter ici si tu exposes les IDs
+                payload.creatorNames = video._selectedCreators;
+            }
             // If nothing to update, do nothing
             if (Object.keys(payload).length === 0) return;
-
             const res = await fetch('/api/videos/' + encodeURIComponent(video.id), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
             if (!res.ok) {
                 console.error('Erreur update modal', res.status, await res.text());
                 setStatus('Erreur sauvegarde');
                 return;
             }
-
             const updated = await res.json();
-
             // update local state
             // try to find and replace in currentVideos
             const idx = findIndexByVideoId(updated.id);
             if (idx >= 0) currentVideos[idx] = updated;
-
             await loadVideos();
-            // re-open modal positioned on same video if still present, even across pages
+            // re-open modal positionnée sur la même vidéo si encore présente
             const newIndex = findIndexByVideoId(updated.id);
             if (newIndex >= 0) {
                 pageSize = getSelectedPageSize();
@@ -1441,15 +1571,41 @@
         </div>
         <div class="filter-box">
             <p class="section-title">Level</p>
-            <select id="sourceIndexSelect" class="selector" onchange="onFilterChange()">
-                <option value="">Tous</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-            </select>
+            <div id="levelFilterStars" style="display:flex; gap:4px; align-items:center; margin-bottom:4px;"></div>
+            <button class="btn-secondary" style="font-size:12px; padding:4px 10px; margin-top:2px;" onclick="setLevelFilter(null)">Tous</button>
+            <input type="hidden" id="sourceIndexSelect" value="">
         </div>
+
+<!-- Script pour les étoiles du filtre Level -->
+<script>
+    let currentLevelFilter = null;
+    function renderLevelFilterStars(selectedLevel) {
+        const container = document.getElementById('levelFilterStars');
+        if (!container) return;
+        container.innerHTML = '';
+        for (let i = 1; i <= 5; i++) {
+            const levelValue = 6 - i;
+            const star = document.createElement('span');
+            star.textContent = '★';
+            star.style.cursor = 'pointer';
+            star.style.fontSize = '22px';
+            // Inverse logic: color the first (6 - selectedLevel) stars from the left
+            star.style.color = (selectedLevel && i <= (6 - selectedLevel)) ? '#facc15' : '#334155';
+            star.title = levelValue + ' étoile(s)';
+            star.onclick = function() { setLevelFilter(levelValue); };
+            container.appendChild(star);
+        }
+    }
+    function setLevelFilter(level) {
+        currentLevelFilter = level;
+        document.getElementById('sourceIndexSelect').value = level ? String(level) : '';
+        renderLevelFilterStars(level);
+        if (typeof onFilterChange === 'function') onFilterChange();
+    }
+    window.addEventListener('DOMContentLoaded', function() {
+        renderLevelFilterStars(null);
+    });
+</script>
 
         <div class="filter-box">
             <p class="section-title">Album</p>
@@ -1488,7 +1644,6 @@
             <img src="/2938237.png" alt="icon" style="width:32px; height:32px; border-radius:8px; box-shadow:0 2px 8px #0003;">
             <span style="font-family:'Segoe UI',Arial,sans-serif; font-size:2.1rem; font-weight:900; letter-spacing:0.04em; background:linear-gradient(90deg,#38bdf8,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent; background-clip:text; color:transparent;">Ar44</span>
         </div>
-        <p class="page-subtitle">Mode sombre bleu, tri facile, lecture et gestion centralisée.</p>
 
         <div class="host-box" style="margin-bottom: 18px;">
             <div class="section-title">Ajouter une vidéo</div>
@@ -1541,20 +1696,18 @@
 
             <!-- Edit Section: Albums et Level - Une ligne compacte -->
             <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 12px; background:rgba(15,23,42,0.8); border:1px solid rgba(148,163,184,0.2); border-radius:10px;">
+
                 <!-- Albums Horizontal Compact -->
                 <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0;">Albums:</label>
-                <div id="albumCheckboxesContainer" style="display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:center;">
-                </div>
+                <div id="albumCheckboxesContainer" style="display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:center;"></div>
+
+                <!-- Creators Badges + MultiSelect -->
+                <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 0 8px;">Creators:</label>
+                <div id="creatorBadgesContainer" style="display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:center;"></div>
 
                 <!-- Level Horizontal Compact -->
                 <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 0 8px;">:</label>
-                <select id="levelSelect" style="background:rgba(11,17,36,0.8); color:#e0f2fe; border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer; transition:all 0.2s ease; height:28px;">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                </select>
+                <div id="levelStarsContainer" style="display:flex; align-items:center; gap:2px;"></div>
                 <span id="levelValue" style="font-weight:700; color:#60a5fa; font-size:12px; min-width:15px; text-align:center;">0</span>
                 <!-- Save Button Icon Only - Small -->
                 <button onclick="saveModalCombined()" title="Enregistrer" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:14px; transition:all 0.2s ease; box-shadow:0 2px 6px rgba(59,130,246,0.25); display:flex; align-items:center; justify-content:center; height:28px; width:28px;" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">

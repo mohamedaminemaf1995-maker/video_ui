@@ -427,22 +427,6 @@
                     </div>
                 </div>
             </div>
-            <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 12px; background:rgba(15,23,42,0.8); border:1px solid rgba(148,163,184,0.2); border-radius:10px;">
-                <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0;">Albums:</label>
-                <div id="albumCheckboxesContainer" style="display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:center;"></div>
-                <label style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 0 8px;">:</label>
-                <select id="levelSelect" style="background:rgba(11,17,36,0.8); color:#e0f2fe; border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer; transition:all 0.2s ease; height:28px;">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                </select>
-                <span id="levelValue" style="font-weight:700; color:#60a5fa; font-size:12px; min-width:15px; text-align:center;">0</span>
-                <button onclick="saveModalCombined()" title="Enregistrer" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:14px; transition:all 0.2s ease; box-shadow:0 2px 6px rgba(59,130,246,0.25); display:flex; align-items:center; justify-content:center; height:28px; width:28px;" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)';this.style.transform='scale(1)'">
-                    💾
-                </button>
-            </div>
         </div>
         <video id="mainPlayer" autoplay style="width:100%; max-height:75vh; background:black; display:block;"></video>
         <div id="bufferingIndicator" class="buffering-indicator"></div>
@@ -670,10 +654,10 @@
             .filter(cb => cb.checked)
             .map(cb => cb.value.trim())
             .filter(Boolean);
-        const newLevel = parseInt(document.getElementById('levelSelect').value, 10);
+        const newLevel = typeof video._selectedLevel === 'number' ? video._selectedLevel : level;
         const payload = {};
         if (selectedAlbums.length) payload.albums = selectedAlbums;
-        if (!Number.isNaN(newLevel)) payload.sourceIndex = Math.max(0, Math.min(5, newLevel));
+        if (!Number.isNaN(newLevel)) payload.sourceIndex = Math.max(1, Math.min(5, newLevel));
         if (Object.keys(payload).length === 0) return;
         const res = await fetch('/api/videos/' + encodeURIComponent(video.id), {
             method: 'PUT',
@@ -719,15 +703,28 @@
             const card = document.createElement('div');
             card.className = 'video-card';
             card.dataset.id = v.id;
+            const creators = Array.isArray(v.creators) && v.creators.length > 0
+                ? v.creators.map(name => `<span class="creator-badge">${name}</span>`).join('')
+                : '<span class="creator-badge" style="background:#64748b;">Unknown</span>';
             card.innerHTML = `
                 <img alt="thumbnail" src="/api/videos/thumbnail?id=${v.id}" class="video-thumb" onclick="openPlayerByIndex(${index})" />
                 <div class="video-overlay">
                     <div class="video-title">${v.title ?? ''}</div>
-                    <div class="video-meta">${(v.creator ?? 'Unknown')} ${Array.isArray(v.albums) && v.albums.length > 0 ? '• ' + v.albums.join(', ') : ''}</div>
+                    <div class="video-meta">${creators} ${Array.isArray(v.albums) && v.albums.length > 0 ? '• ' + v.albums.join(', ') : ''} <span class="level-stars">${renderLevelStars(v.sourceIndex)}</span></div>
                 </div>
                 <div class="favorite-icon ${v.favorite ? 'favorite-active' : ''}" onclick="toggleFavorite(event, ${v.id}, this)">♥</div>
                 <div class="video-duration">${formatDuration(v.durationMs)}</div>
             `;
+            // Fonction utilitaire pour afficher les étoiles inversées
+            function renderLevelStars(level) {
+                let html = '';
+                const val = (typeof level === 'number' && level >= 1 && level <= 5) ? level : 1;
+                // Affichage direct : 2 = 2 étoiles
+                for (let i = 1; i <= 5; i++) {
+                    html += `<span style="color:${i <= val ? '#facc15' : '#334155'};font-size:15px;">★</span>`;
+                }
+                return html;
+            }
             container.appendChild(card);
         });
         renderPagination(allVideos.length, totalPages);
@@ -761,7 +758,10 @@
         currentIndex = index;
         const video = currentVideos[index];
         document.getElementById('playerTitle').textContent = video.title || 'Lecture vidéo';
-        document.getElementById('playerSubtitle').textContent = `Créateur: ${video.creator || 'Unknown'} • Level: ${video.sourceIndex ?? 'N/A'} • Albums: ${Array.isArray(video.albums) && video.albums.length > 0 ? video.albums.join(', ') : 'Aucun'}`;
+        const creators = Array.isArray(video.creators) && video.creators.length > 0
+            ? video.creators.join(', ')
+            : 'Unknown';
+        document.getElementById('playerSubtitle').textContent = `Créateur: ${creators} • Level: ${video.sourceIndex ?? 'N/A'} • Albums: ${Array.isArray(video.albums) && video.albums.length > 0 ? video.albums.join(', ') : 'Aucun'}`;
         document.getElementById('playerDuration').textContent = `${formatDuration(video.durationMs)} / ${formatDuration(video.durationMs || 0)}`;
         document.getElementById('playerFavoriteState').textContent = video.favorite ? 'Oui' : 'Non';
         const player = document.getElementById('mainPlayer');
@@ -809,8 +809,41 @@
             });
         }
         const level = (video.sourceIndex != null && video.sourceIndex >= 1 && video.sourceIndex <= 5) ? video.sourceIndex : 1;
-        document.getElementById('levelSelect').value = level;
+        renderLevelStarsInModal(level);
         document.getElementById('levelValue').textContent = video.sourceIndex ?? 0;
+
+        function renderLevelStarsInModal(selectedLevel) {
+            const container = document.getElementById('levelStarsContainer');
+            container.innerHTML = '';
+            // Affichage inversé : 1 = 5 étoiles, 2 = 4, ... 5 = 1 étoile
+            const stars = 6 - selectedLevel;
+            for (let i = 1; i <= 5; i++) {
+                const star = document.createElement('span');
+                star.textContent = '★';
+                star.style.cursor = 'pointer';
+                star.style.fontSize = '22px';
+                star.style.color = i <= stars ? '#facc15' : '#334155';
+                star.title = `${i} étoile(s)`;
+                star.onclick = () => {
+                    renderLevelStarsInModal(6 - i + 1);
+                    video._selectedLevel = 6 - i + 1;
+                    document.getElementById('levelValue').textContent = 6 - i + 1;
+                };
+                container.appendChild(star);
+            }
+        }
+        // --- FAVORITE ICON ---
+        const favBtn = document.getElementById('favoriteModalBtn');
+        const favIcon = document.getElementById('favoriteIcon');
+        if (favBtn && favIcon) {
+            if (video.favorite) {
+                favIcon.textContent = '♥';
+                favIcon.style.color = '#f43f5e';
+            } else {
+                favIcon.textContent = '♡';
+                favIcon.style.color = '#e2e8f0';
+            }
+        }
     }
     function getAllAlbums() {
         const albums = new Set();

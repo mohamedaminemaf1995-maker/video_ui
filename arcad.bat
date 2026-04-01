@@ -19,6 +19,6 @@ echo ==============================
 echo 2. Lancement Spring Boot
 echo ==============================
 
-java -jar D:\workspaces\demo\target\demo-0.0.1-SNAPSHOT.jar --server.port=8080
+java -jar D:\workspaces\demo\target\demo-0.0.1-SNAPSHOT.jar
 
 pause
