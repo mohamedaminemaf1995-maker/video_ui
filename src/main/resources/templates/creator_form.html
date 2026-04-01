@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Créateur</title>
+</head>
+<body>
+<h1 th:text="${creator.id} != null ? 'Modifier le créateur' : 'Ajouter un créateur'"></h1>
+<form th:action="${creator.id} != null ? @{'/config/creators/edit/' + ${creator.id}} : @{/config/creators/add}" method="post">
+    <label>Nom :</label>
+    <input type="text" name="name" th:value="${creator.name}" required/>
+    <button type="submit">Enregistrer</button>
+</form>
+<a th:href="@{/config/creators}">Retour à la liste</a>
+</body>
+</html>

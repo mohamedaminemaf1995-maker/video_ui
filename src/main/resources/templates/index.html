@@ -1491,7 +1491,8 @@
                 .filter(cb => cb.checked)
                 .map(cb => cb.value.trim())
                 .filter(Boolean);
-            const newLevel = typeof video._selectedLevel === 'number' ? video._selectedLevel : level;
+            // Correction ici : utilise video.sourceIndex comme fallback si _selectedLevel n'est pas défini
+            const newLevel = typeof video._selectedLevel === 'number' ? video._selectedLevel : (video.sourceIndex ?? 1);
             const payload = {};
             if (selectedAlbums.length) payload.albums = selectedAlbums;
             if (!Number.isNaN(newLevel)) payload.sourceIndex = Math.max(0, Math.min(5, newLevel));

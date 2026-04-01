@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Gestion des Créateurs</title>
+</head>
+<body>
+<h1>Liste des Créateurs</h1>
+<a th:href="@{/config/creators/add}">Ajouter un créateur</a>
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Nom</th>
+        <th>Actions</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="creator : ${creators}">
+        <td th:text="${creator.id}"></td>
+        <td th:text="${creator.name}"></td>
+        <td>
+            <a th:href="@{'/config/creators/edit/' + ${creator.id}}">Modifier</a>
+            <form th:action="@{'/config/creators/delete/' + ${creator.id}}" method="post" style="display:inline;">
+                <button type="submit">Supprimer</button>
+            </form>
+        </td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>
