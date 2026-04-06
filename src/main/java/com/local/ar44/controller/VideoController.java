@@ -18,6 +18,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -34,6 +36,8 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/videos")
 public class VideoController {
+        @Value("${app.videos.dir}")
+        private String videosDir;
     private static final Logger log = LoggerFactory.getLogger(VideoController.class);
 
     private final VideoRepository videoRepository;
@@ -77,9 +81,7 @@ public class VideoController {
         }
         return host;
     }
-    private String buildUrl(String host, String fileName) {
-        return "http://" + host + "/" + fileName;
-    }
+
 
     private VideoResponse toResponse(Video video, String host) {
 
@@ -108,7 +110,12 @@ public class VideoController {
                 .toList());
         response.setFavorite(video.getFavorite());
         response.setSourceIndex(video.getSourceIndex());
-        response.setUrl(buildUrl(host, fileName));
+        // On retourne l'URL du endpoint local pour le player
+        response.setUrl("/api/videos/file?fileName=" + java.net.URLEncoder.encode(fileName, java.nio.charset.StandardCharsets.UTF_8));
+            /**
+             * Sert le fichier vidéo localement (streaming)
+             */
+
         response.setFavoriteOrder(video.getFavoriteOrder());
         
         // 🔗 Log pour les URLs des thumbnails
@@ -118,7 +125,24 @@ public class VideoController {
 
         return response;
     }
-
+    @GetMapping("/file")
+    public ResponseEntity<Resource> getVideoFile(@RequestParam String fileName) {
+        Path videoPath = Paths.get(videosDir, fileName).toAbsolutePath();
+        log.info("[VIDEO-READ] Demande de lecture pour {}", videoPath);
+        if (!Files.exists(videoPath)) {
+            log.error("[VIDEO-ERROR] Fichier vidéo introuvable: {}", videoPath);
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            Resource resource = new UrlResource(videoPath.toUri());
+            return ResponseEntity.ok()
+                    .header("Content-Type", "video/mp4")
+                    .body(resource);
+        } catch (Exception e) {
+            log.error("[VIDEO-ERROR] Erreur lors de la lecture de {}: {}", videoPath, e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
+    }
     private void assignAlbumsToVideo(Video video, String albumString) {
         video.getAlbums().clear();
         if (albumString != null && !albumString.isEmpty()) {
