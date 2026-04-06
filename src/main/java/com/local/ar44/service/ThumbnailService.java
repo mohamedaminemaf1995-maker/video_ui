@@ -19,14 +19,18 @@ public class ThumbnailService {
     private final int thumbWidth;
     private final int thumbQuality;
 
+    private final String videosDir;
+
     public ThumbnailService(AppConfigRepository appConfigRepository,
                             ThumbnailStorageService thumbnailStorageService,
                             @Value("${thumbnail.width:180}") int thumbWidth,
-                            @Value("${thumbnail.quality:4}") int thumbQuality) {
+                            @Value("${thumbnail.quality:4}") int thumbQuality,
+                            @Value("${app.videos.dir}") String videosDir) {
         this.appConfigRepository = appConfigRepository;
         this.thumbnailStorageService = thumbnailStorageService;
         this.thumbWidth = thumbWidth;
         this.thumbQuality = thumbQuality;
+        this.videosDir = videosDir;
     }
 
     public Path generateIfMissing(Video video) throws Exception {
@@ -51,7 +55,9 @@ public class ThumbnailService {
                 .map(AppConfig::getMediaHost)
                 .orElse("192.168.1.30");
 
-        String videoUrl = "http://" + host + "/" + fileName;
+
+        // Utilisation du chemin local pour la vidéo (injecté)
+        String videoUrl = java.nio.file.Paths.get(videosDir, fileName).toAbsolutePath().toString();
 
         String seek = resolveSeekTime(video.getDurationMs());
 

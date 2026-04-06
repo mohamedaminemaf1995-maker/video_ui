@@ -766,7 +766,13 @@
         document.getElementById('playerFavoriteState').textContent = video.favorite ? 'Oui' : 'Non';
         const player = document.getElementById('mainPlayer');
         player.pause();
-        player.src = video.url || '';
+        // Correction : utiliser l’endpoint backend pour servir la vidéo locale
+        if (video.fileName) {
+            player.src = `/api/videos/file?fileName=${encodeURIComponent(video.fileName)}`;
+            console.info('[VIDEO-PLAYER] Lecture de', player.src);
+        } else {
+            player.src = '';
+        }
         document.getElementById('playerModal').style.display = 'flex';
         markVideoAsWatched(video.id);
         const videoAlbums = Array.isArray(video.albums) ? video.albums : [];
