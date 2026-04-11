@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
+        <!-- Google Material Icons -->
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <meta charset="UTF-8">
-    <title>Arcad - Video Library</title>
+    <title>arcad</title>
     <style>
                         .creator-badge.selected {
                             background: linear-gradient(90deg, #0ea5e9, #6366f1);
@@ -471,38 +473,47 @@
         }
 
         .nav-chip-wrap {
+        .nav-hublot-wrap {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 7px;
-            margin-bottom: 10px;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 44px 32px;
+            margin-bottom: 44px;
+            justify-items: stretch;
+            align-items: stretch;
+            width: 100%;
+            min-height: 340px;
         }
-
-        .nav-chip {
+        .nav-hublot {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 50%;
+            background: rgba(30, 41, 59, 0.18);
+            border: 2.5px solid rgba(56,189,248,0.13);
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
-            border-radius: 10px;
-            border: 1px solid rgba(148, 163, 184, 0.32);
-            background: rgba(15, 23, 42, 0.72);
-            color: #cbd5e1;
-            font-size: 13px;
-            font-weight: 600;
+            justify-content: center;
+            color: #fff;
+            font-size: 44px;
             cursor: pointer;
-            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+            box-shadow: 0 4px 24px #0002, 0 1.5px 8px #38bdf822;
+            transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s, background 0.18s;
+            position: relative;
+            backdrop-filter: blur(2.5px);
+            opacity: 0.92;
         }
-
-        .nav-chip:hover {
-            transform: translateX(3px);
-            border-color: rgba(56, 189, 248, 0.6);
-            background: rgba(30, 41, 59, 0.95);
+        .nav-hublot:hover {
+            transform: scale(1.08);
+            border-color: #38bdf8;
+            background: linear-gradient(135deg, rgba(56,189,248,0.13) 60%, rgba(99,102,241,0.13) 100%);
+            box-shadow: 0 8px 28px #38bdf855, 0 2px 12px #6366f155;
+            opacity: 1;
         }
-
-        .nav-chip.active {
-            border-color: rgba(56, 189, 248, 0.8);
-            background: linear-gradient(90deg, rgba(56, 189, 248, 0.2), rgba(99, 102, 241, 0.2));
-            color: #e0f2fe;
-            box-shadow: 0 6px 16px rgba(30, 64, 175, 0.2);
+        .nav-hublot.active {
+            border-color: #fff;
+            background: linear-gradient(135deg, rgba(99,102,241,0.18) 60%, rgba(56,189,248,0.18) 100%);
+            box-shadow: 0 0 0 6px #38bdf855;
+            opacity: 1;
         }
 
         .accordion {
@@ -1545,11 +1556,19 @@
             </button>
         </div>
 
-        <div class="nav-chip-wrap">
-            <button class="nav-chip active" onclick="location.href='/'">Bibliothèque</button>
-            <button class="nav-chip" onclick="location.href='/favorites'">Favoris</button>
-            <button class="nav-chip" onclick="location.href='/recently'">Récemment vus</button>
-            <button class="nav-chip" onclick="location.href='/stats'">Statistiques</button>
+        <div class="nav-hublot-wrap">
+            <button class="nav-hublot active" onclick="location.href='/'" title="Bibliothèque">
+                <span class="material-icons">video_library</span>
+            </button>
+            <button class="nav-hublot" onclick="openAddVideoModal()" title="Ajouter une vidéo">
+                <span class="material-icons">add_circle</span>
+            </button>
+            <button class="nav-hublot" onclick="location.href='/favorites'" title="Favoris">
+                <span class="material-icons">favorite</span>
+            </button>
+            <button class="nav-hublot" onclick="location.href='/stats'" title="Statistiques">
+                <span class="material-icons">bar_chart</span>
+            </button>
         </div>
 
 
@@ -1646,17 +1665,53 @@
             <span style="font-family:'Segoe UI',Arial,sans-serif; font-size:2.1rem; font-weight:900; letter-spacing:0.04em; background:linear-gradient(90deg,#38bdf8,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent; background-clip:text; color:transparent;">Ar44</span>
         </div>
 
-        <div class="host-box" style="margin-bottom: 18px;">
-            <div class="section-title">Ajouter une vidéo</div>
-            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
-                <input id="newFileName" class="host-input" type="text" placeholder="Nom du fichier (A69_001_DDDD.mp4)" style="flex:1; min-width:180px;" />
-                <input id="newTitle" class="host-input" type="text" placeholder="Titre (optionnel)" style="flex:1; min-width:170px;" />
-                <select id="newCreator" class="selector" style="width:170px;">
-                    <option value="">Select creator</option>
-                </select>
-                <button class="btn" onclick="createVideo()" style="flex:0; min-width:120px;">Ajouter</button>
-            </div>
-        </div>
+        <!-- Le bouton Ajouter une vidéo est maintenant dans la sidebar -->
+<!-- Modal d'ajout vidéo -->
+<div id="addVideoModal" style="display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,32,0.88); align-items:center; justify-content:center;">
+    <form id="addVideoForm" style="background:linear-gradient(135deg,#0ea5e9,#6366f1); border-radius:18px; box-shadow:0 8px 32px #0008; padding:36px 32px 28px 32px; min-width:340px; max-width:98vw; width:400px; color:#fff; display:flex; flex-direction:column; gap:18px; position:relative;">
+        <button type="button" onclick="closeAddVideoModal()" style="position:absolute; top:16px; right:16px; background:rgba(15,23,42,0.7); color:#fff; border:none; border-radius:8px; width:32px; height:32px; font-size:18px; cursor:pointer;">✕</button>
+        <h2 style="margin:0 0 8px 0; font-size:1.5rem; font-weight:800; letter-spacing:0.03em; text-align:center; background:linear-gradient(90deg,#fff,#bae6fd,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent; background-clip:text; color:transparent;">Nouvelle vidéo</h2>
+        <input name="title" class="host-input" type="text" placeholder="Titre de la vidéo" required style="background:rgba(255,255,255,0.08); color:#fff;" />
+        <input name="fileName" class="host-input" type="text" placeholder="Nom du fichier (ex: A69_001_DDDD.mp4)" required style="background:rgba(255,255,255,0.08); color:#fff;" />
+        <input name="creators" class="host-input" type="text" placeholder="Créateurs (séparés par virgule)" style="background:rgba(255,255,255,0.08); color:#fff;" />
+        <input name="albums" class="host-input" type="text" placeholder="Albums (séparés par virgule)" style="background:rgba(255,255,255,0.08); color:#fff;" />
+        <input name="sourceIndex" class="host-input" type="number" min="1" max="5" placeholder="Niveau (1-5)" style="background:rgba(255,255,255,0.08); color:#fff;" />
+        <input name="createdAt" id="createdAtInput" class="host-input" type="text" placeholder="Date de création" readonly style="background:rgba(255,255,255,0.08); color:#fff;" />
+        <label style="font-size:13px; color:#e0e7ef;">Thumbnail <span style="color:#f87171;">*</span> <input name="thumbnail" type="file" accept="image/*" required style="margin-left:8px;" /></label>
+        <label style="font-size:13px; color:#e0e7ef;">Vidéo (optionnelle) <input name="videoFile" type="file" accept="video/mp4,video/*" style="margin-left:8px;" /></label>
+        <button type="submit" class="btn" style="margin-top:10px; font-size:1.1rem;">Ajouter</button>
+        <div id="addVideoStatus" style="font-size:13px; min-height:18px; color:#bae6fd; text-align:center;"></div>
+    </form>
+</div>
+<script>
+function openAddVideoModal() {
+    document.getElementById('addVideoModal').style.display = 'flex';
+    // Remplit la date de création automatiquement
+    const now = new Date();
+    const pad = n => n.toString().padStart(2, '0');
+    const formatted = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    document.getElementById('createdAtInput').value = formatted;
+}
+function closeAddVideoModal() {
+    document.getElementById('addVideoModal').style.display = 'none';
+    document.getElementById('addVideoForm').reset();
+    document.getElementById('addVideoStatus').textContent = '';
+}
+document.getElementById('addVideoForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    document.getElementById('addVideoStatus').textContent = 'Ajout en cours...';
+    try {
+        const res = await fetch('/api/videos/upload', { method: 'POST', body: data });
+        if (!res.ok) throw new Error(await res.text());
+        document.getElementById('addVideoStatus').textContent = 'Vidéo ajoutée !';
+        setTimeout(() => { closeAddVideoModal(); loadVideos(); }, 1200);
+    } catch (err) {
+        document.getElementById('addVideoStatus').textContent = 'Erreur: ' + err.message;
+    }
+}
+</script>
 
         <div class="list-controls">
             <div id="videoCount" class="count-box"></div>

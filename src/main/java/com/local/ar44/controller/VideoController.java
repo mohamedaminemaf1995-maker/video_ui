@@ -1,4 +1,3 @@
-
 package com.local.ar44.controller;
 
 import com.local.ar44.dto.Album;
@@ -24,11 +23,13 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -454,8 +455,50 @@ public class VideoController {
     // ========================
     @GetMapping("/delete")
     public String deleteVideo(@RequestParam Long id) {
+        Optional<Video> videoOpt = videoRepository.findById(id);
+        if (videoOpt.isEmpty()) {
+            return "Vidéo introuvable : " + id;
+        }
+        Video video = videoOpt.get();
+        String fileName = video.getFileName();
+        // Détection du répertoire courant (là où se trouve le JAR)
+        String currentDir = System.getProperty("user.dir");
+        boolean isLinux = System.getProperty("os.name").toLowerCase().contains("linux");
+        Path baseDir;
+        if (isLinux) {
+            baseDir = Paths.get(currentDir);
+        } else {
+            baseDir = Paths.get(videosDir);
+        }
+        // Suppression du fichier vidéo (dans le même dossier que le JAR si Linux)
+        if (fileName != null && !fileName.isBlank()) {
+            Path videoPath = baseDir.resolve(fileName).toAbsolutePath();
+            try {
+                if (Files.exists(videoPath) && Files.isRegularFile(videoPath)) {
+                    Files.delete(videoPath);
+                    log.info("[DELETE] Fichier vidéo supprimé: {}", videoPath);
+                } else {
+                    log.warn("[DELETE] Fichier vidéo introuvable ou non régulier: {}", videoPath);
+                }
+            } catch (Exception e) {
+                log.error("[DELETE] Erreur suppression fichier vidéo: {}", e.getMessage());
+            }
+        }
+        // Suppression du thumbnail (dans le même dossier que le JAR si Linux)
+        try {
+            String thumbName = thumbnailStorageService.toThumbnailName(fileName);
+            Path thumbPath = baseDir.resolve(thumbName).toAbsolutePath();
+            if (Files.exists(thumbPath) && Files.isRegularFile(thumbPath)) {
+                Files.delete(thumbPath);
+                log.info("[DELETE] Thumbnail supprimé: {}", thumbPath);
+            } else {
+                log.warn("[DELETE] Thumbnail introuvable ou non régulier: {}", thumbPath);
+            }
+        } catch (Exception e) {
+            log.error("[DELETE] Erreur suppression thumbnail: {}", e.getMessage());
+        }
         videoRepository.deleteById(id);
-        return "Video supprimée : " + id;
+        return "Vidéo supprimée : " + id;
     }
 
     @GetMapping("/album/set")
@@ -613,5 +656,72 @@ public class VideoController {
         videoRepository.saveAll(toSave);
 
         return "Favorites reordered";
+    }
+
+    @PostMapping("/upload")
+    public ResponseEntity<String> uploadVideo(
+            @RequestParam String title,
+            @RequestParam String fileName,
+            @RequestParam String creators,
+            @RequestParam(required = false) String albums,
+            @RequestParam(required = false) Integer sourceIndex,
+            @RequestParam("thumbnail") MultipartFile thumbnailFile,
+            @RequestParam(value = "videoFile", required = false) MultipartFile videoFile
+    ) {
+        try {
+            // Création de l'entité Video
+            Video video = new Video();
+            video.setTitle(title);
+            video.setFileName(fileName);
+            if (sourceIndex != null) video.setSourceIndex(sourceIndex);
+            video.setCreatedAt(LocalDateTime.now());
+            // Créateurs (optionnel)
+            if (creators != null && !creators.isBlank()) {
+                List<String> creatorNames = Arrays.stream(creators.split(","))
+                        .map(String::trim).filter(s -> !s.isEmpty()).toList();
+                if (!creatorNames.isEmpty()) {
+                    Set<com.local.ar44.dto.Creator> creatorSet = new HashSet<>();
+                    for (String name : creatorNames) {
+                        creatorSet.add(creatorService.findOrCreateByName(name));
+                    }
+                    video.setCreators(creatorSet);
+                }
+            }
+            // Albums (optionnel)
+            if (albums != null && !albums.isBlank()) {
+                List<String> albumNames = Arrays.stream(albums.split(","))
+                        .map(String::trim).filter(s -> !s.isEmpty()).toList();
+                if (!albumNames.isEmpty()) {
+                    Set<com.local.ar44.dto.Album> albumSet = new HashSet<>();
+                    for (String name : albumNames) {
+                        albumSet.add(findOrCreateAlbumSafe(name));
+                    }
+                    video.setAlbums(albumSet);
+                }
+            }
+            // Sauvegarde de la vidéo en base (pour avoir l'ID)
+            video = videoRepository.save(video);
+            // Enregistrement du thumbnail (obligatoire)
+            if (thumbnailFile == null || thumbnailFile.isEmpty()) {
+                return ResponseEntity.badRequest().body("Thumbnail obligatoire");
+            }
+            Path thumbPath = thumbnailStorageService.getThumbPath(fileName);
+            Files.createDirectories(thumbPath.getParent());
+            try (var in = thumbnailFile.getInputStream()) {
+                Files.copy(in, thumbPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            // Enregistrement du fichier vidéo (optionnel)
+            if (videoFile != null && !videoFile.isEmpty()) {
+                Path videoPath = Paths.get(videosDir, fileName).toAbsolutePath();
+                Files.createDirectories(videoPath.getParent());
+                try (var in = videoFile.getInputStream()) {
+                    Files.copy(in, videoPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+            return ResponseEntity.ok("Ajouté");
+        } catch (Exception e) {
+            log.error("[UPLOAD] Erreur ajout vidéo: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("Erreur: " + e.getMessage());
+        }
     }
 }
