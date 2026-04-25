@@ -709,334 +709,6 @@
             player.pause();
             player.src = '';
             document.getElementById('playerModal').style.display = 'none';
-        }
-        function renderVideos(videos, keepPage = false) {
-
-            allVideos = videos || [];
-            if (!keepPage) currentPage = 1;
-            pageSize = getSelectedPageSize();
-            const totalPages = Math.max(1, Math.ceil(allVideos.length / pageSize));
-            if (currentPage > totalPages) currentPage = totalPages;
-            const start = (currentPage - 1) * pageSize;
-            currentVideos = allVideos.slice(start, start + pageSize);
-            currentIndex = -1;
-
-            const container = document.getElementById('videos');
-            const countBox = document.getElementById('videoCount');
-            container.innerHTML = '';
-            countBox.textContent = allVideos.length + ' vidéo(s)';
-
-            if (!allVideos.length) {
-                renderPagination(0, 1);
-                container.innerHTML = '<div class="empty-state">Aucune vidéo trouvée.</div>';
-                return;
-            }
-
-            // Vérifier si au moins une vidéo a une URL valide
-            const hasValidUrl = allVideos.some(v => v.url && typeof v.url === 'string' && v.url.trim() !== '');
-            if (!hasValidUrl) {
-                renderPagination(allVideos.length, totalPages);
-                container.innerHTML = '<div class="empty-state" style="color:#f87171;">Erreur : aucune vidéo n\'a d\'URL valide.<br>Vérifiez la configuration du host ou la base de données.<br>Astuce : testez l\'API /api/videos dans un navigateur pour voir les URLs générées.</div>';
-                return;
-            }
-
-            currentVideos.forEach((v, index) => {
-                const card = document.createElement('div');
-                card.className = 'video-card';
-
-                const thumbUrl = `/api/videos/thumbnail?id=${v.id}`;
-
-                const creators = Array.isArray(v.creators) && v.creators.length > 0
-                    ? v.creators.map(name => `<span class="creator-badge">${name}</span>`).join('')
-                    : '<span class="creator-badge" style="background:#64748b;">Unknown</span>';
-                card.innerHTML = `
-    <div style="position:relative;">
-        <div class="favorite-icon ${v.favorite ? 'favorite-active' : ''}" onclick="toggleFavoriteModal(${v.id}, this)">♥</div>
-        <input type="checkbox" class="video-checkbox" data-id="${v.id}" style="position:absolute; top:8px; right:8px; width:20px; height:20px; cursor:pointer; z-index:10;" onchange="toggleVideoSelection(${v.id}, this.checked)" />
-        <img src="${thumbUrl}" class="video-thumb" loading="lazy" onclick="openPlayerByIndex(${index})" onerror="this.style.opacity=0.3;" />
-        <div class="video-overlay">
-            <div class="video-title" title="${v.title ?? ''}">${v.title ?? ''}</div>
-            <div class="video-meta">
-                ${creators}
-                ${Array.isArray(v.albums) && v.albums.length > 0 ? '• ' + v.albums.join(', ') : ''}
-                <span class="level-stars">${renderLevelStars(v.sourceIndex)}</span>
-            </div>
-        </div>
-        <div class="video-duration">${formatDuration(v.durationMs)}</div>
-    </div>
-                `;
-                container.appendChild(card);
-            });
-
-            renderPagination(allVideos.length, totalPages);
-
-        // Fonction utilitaire pour afficher les étoiles inversées
-        function renderLevelStars(level) {
-            let html = '';
-            const val = (typeof level === 'number' && level >= 1 && level <= 5) ? level : 1;
-            // 1 = 5 étoiles, 2 = 4, ... 5 = 1 étoile
-            const stars = 6 - val;
-            for (let i = 1; i <= 5; i++) {
-                html += `<span style="color:${i <= stars ? '#facc15' : '#334155'};font-size:15px;">★</span>`;
-            }
-            return html;
-        }
-        }
-
-        async function toggleFavoriteModal(videoId, button) {
-            const video = currentVideos.find(v => v.id === videoId);
-            if (!video) return;
-
-            await fetch(`/api/videos/favorite/toggle?id=${videoId}`);
-
-            video.favorite = !video.favorite;
-            button.classList.toggle('favorite-active');
-            document.getElementById('playerFavoriteState').textContent = video.favorite ? 'Oui' : 'Non';
-        }
-        async function loadVideos() {
-            try {
-                setStatus('Chargement des vidéos...');
-                const album = getSelectedAlbum();
-                const creator = getSelectedCreator();
-                const sourceIndex = getSelectedSourceIndex();
-                const favoriteOnly = document.getElementById('favoriteFilter')?.checked;
-
-                let videos = await fetchJson('/api/videos');
-
-                if (album.length > 0) {
-                    videos = videos.filter(v => {
-                        const videoAlbums = Array.isArray(v.albums) ? v.albums : [];
-                        // ET logique : la vidéo doit contenir tous les albums sélectionnés (peu importe s'il y en a d'autres)
-                        return album.every(selected => videoAlbums.includes(selected));
-                    });
-                }
-
-                if (creator) {
-                    videos = videos.filter(v => Array.isArray(v.creators) && v.creators.includes(creator));
-                }
-
-                if (sourceIndex) {
-                    videos = videos.filter(v => String(v.sourceIndex) === sourceIndex);
-                }
-                if (favoriteOnly) {
-                    videos = videos.filter(v => v.favorite === true);
-                }
-                const sortOrder = document.getElementById('sortSelect').value;
-                applySortOrder(sortOrder, videos);
-                renderVideos(videos);
-                setStatus('');
-            } catch (e) {
-                setStatus('Erreur chargement vidéos');
-            }
-        }
-
-        async function loadAlbums() {
-            try {
-                const albums = await fetchJson('/api/videos/albums');
-                const filterSelect = document.getElementById('albumSelect');
-
-                filterSelect.innerHTML = '<option value="">Tous</option>';
-
-                albums.forEach(album => {
-                    const opt1 = document.createElement('option');
-                    opt1.value = album;
-                    opt1.textContent = album;
-                    filterSelect.appendChild(opt1);
-                });
-            } catch (e) {}
-        }
-
-        async function loadCreators() {
-            try {
-                const creators = await fetchJson('/api/videos/creators');
-
-                const select = document.getElementById('creatorSelect');
-                const newCreator = document.getElementById('newCreator');
-
-                select.innerHTML = '<option value="">Tous</option>';
-                newCreator.innerHTML = '<option value="">Sélectionner creator</option>';
-
-                creators.forEach(creator => {
-                    const opt1 = document.createElement('option');
-                    opt1.value = creator;
-                    opt1.textContent = creator;
-                    select.appendChild(opt1);
-
-                    const opt2 = document.createElement('option');
-                    opt2.value = creator;
-                    opt2.textContent = creator;
-                    newCreator.appendChild(opt2);
-                });
-            } catch (e) {}
-        }
-
-        async function loadHost() {
-            try {
-                const host = await fetchText('/api/config/host');
-                document.getElementById('hostInput').value = host;
-            } catch (e) {}
-        }
-
-        async function updateHost() {
-            try {
-                const host = document.getElementById('hostInput').value.trim();
-                if (!host) return;
-
-                setStatus('Mise à jour du host...');
-                await fetch(`/api/config/host/set?host=${encodeURIComponent(host)}`);
-                await loadVideos();
-                setStatus('Host mis à jour');
-            } catch (e) {
-                setStatus('Erreur mise à jour host');
-            }
-        }
-
-        async function saveDb() {
-            try {
-                setStatus('Sauvegarde de la base...');
-                await fetch('/api/db/save');
-                setStatus('Base sauvegardée ✔');
-            } catch (e) {
-                setStatus('Erreur sauvegarde DB');
-            }
-        }
-
-        async function resetFilters() {
-            const albumSelect = document.getElementById('albumSelect');
-            Array.from(albumSelect.options).forEach(opt => opt.selected = false);
-            document.getElementById('creatorSelect').value = '';
-            document.getElementById('sourceIndexSelect').value = '';
-            document.getElementById('sortSelect').value = 'recent';
-            await loadVideos();
-        }
-
-        async function createVideo() {
-            const fileName = document.getElementById('newFileName').value.trim();
-            const title = document.getElementById('newTitle').value.trim();
-            const creator = document.getElementById('newCreator').value;
-
-            if (!fileName) {
-                setStatus('Le nom de fichier est requis.');
-                return;
-            }
-
-            const params = new URLSearchParams();
-            params.set('fileName', fileName);
-            if (title) params.set('title', title);
-            if (creator) params.set('creator', creator);
-
-            setStatus('Ajout de la vidéo...');
-            try {
-                await fetch(`/api/videos/create?${params.toString()}`);
-                setStatus('Vidéo ajoutée.');
-                document.getElementById('newFileName').value = '';
-                document.getElementById('newTitle').value = '';
-                document.getElementById('newCreator').value = '';
-                await loadCreators();
-                await loadVideos();
-            } catch (e) {
-                setStatus('Erreur ajout vidéo');
-                console.error(e);
-            }
-        }
-
-        async function onFilterChange() {
-            await loadVideos();
-        }
-
-        function onSortChange() {
-            const sortOrder = document.getElementById('sortSelect').value;
-            applySortOrder(sortOrder, allVideos);
-            renderVideos(allVideos, true);
-        }
-
-        function applySortOrder(order, list = allVideos) {
-            if (!list || list.length === 0) return;
-
-            switch (order) {
-                case 'name-asc':
-                    list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-                    break;
-                case 'name-desc':
-                    list.sort((a, b) => (b.title || '').localeCompare(a.title || ''));
-                    break;
-                case 'recent':
-                    list.sort((a, b) => (b.id || 0) - (a.id || 0));
-                    break;
-                case 'oldest':
-                    list.sort((a, b) => (a.id || 0) - (b.id || 0));
-                    break;
-                case 'default':
-                default:
-                    // No sort, keep as-is
-                    break;
-            }
-        }
-
-        function toggleVideoSelection(videoId, isChecked) {
-            if (isChecked) {
-                selectedVideoIds.add(videoId);
-            } else {
-                selectedVideoIds.delete(videoId);
-            }
-            updateSelectionCount();
-        }
-
-        function selectAllVisible() {
-            currentVideos.forEach(v => selectedVideoIds.add(v.id));
-            document.querySelectorAll('.video-checkbox').forEach(cb => cb.checked = true);
-            updateSelectionCount();
-        }
-
-        function selectNone() {
-            selectedVideoIds.clear();
-            document.querySelectorAll('.video-checkbox').forEach(cb => cb.checked = false);
-            updateSelectionCount();
-        }
-
-        function updateSelectionCount() {
-            const count = selectedVideoIds.size;
-            const countEl = document.getElementById('selectionCount');
-            if (countEl) {
-                countEl.textContent = count > 0 ? `${count} sélectionné(s)` : '';
-            }
-        }
-
-        async function exportM3U() {
-            if (selectedVideoIds.size === 0) {
-                setStatus('Veuillez sélectionner au moins une vidéo.');
-                return;
-            }
-
-            const selectedVideos = currentVideos.filter(v => selectedVideoIds.has(v.id));
-            
-            let m3uContent = '#EXTM3U\n';
-            selectedVideos.forEach(v => {
-                m3uContent += `#EXTINF:${Math.floor((v.durationMs || 0) / 1000)},${v.title || 'Vidéo'}\n`;
-                m3uContent += `${v.url}\n`;
-            });
-
-            const blob = new Blob([m3uContent], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `arcad_playlist_${new Date().getTime()}.m3u`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            setStatus(`Playlist M3U exportée (${selectedVideos.length} vidéo(s)).`);
-        }
-        // openPlayerByIndex is implemented later; this placeholder is intentionally kept for ordering when script is parsed.        let deleteCandidateId = null;
-
-        function closePlayer() {
-            const watchedVideo = currentIndex >= 0 && currentVideos[currentIndex] ? currentVideos[currentIndex] : null;
-            if (watchedVideo) {
-                reportWatchSession(watchedVideo.id);
-            }
-            const player = document.getElementById('mainPlayer');
-            player.pause();
-            player.src = '';
-            document.getElementById('playerModal').style.display = 'none';
             const seek = document.getElementById('seekBar');
             if (seek) seek.value = 0;
             const cur = document.getElementById('currentTime');
@@ -1339,6 +1011,7 @@
             document.getElementById('playerModal').style.display = 'flex';
             markVideoAsWatched(video.id);
 
+
             // Build album checkboxes
             const videoAlbums = Array.isArray(video.albums) ? video.albums : [];
             const container = document.getElementById('albumCheckboxesContainer');
@@ -1378,6 +1051,51 @@
                 });
                 container.appendChild(label);
             });
+
+            // --- Playlist DROPDOWN ---
+            // Ajoute une liste déroulante pour ajouter la vidéo à une playlist
+            const playlistDiv = document.createElement('div');
+            playlistDiv.style.margin = '12px 0 0 0';
+            playlistDiv.style.display = 'flex';
+            playlistDiv.style.alignItems = 'center';
+            playlistDiv.style.gap = '8px';
+            const playlistLabel = document.createElement('label');
+            playlistLabel.textContent = 'Ajouter à la playlist :';
+            playlistLabel.style.fontSize = '13px';
+            playlistLabel.style.color = '#bae6fd';
+            playlistDiv.appendChild(playlistLabel);
+            const playlistSelect = document.createElement('select');
+            playlistSelect.style.padding = '4px 8px';
+            playlistSelect.style.borderRadius = '6px';
+            playlistSelect.style.background = 'rgba(11,17,36,0.8)';
+            playlistSelect.style.color = '#e0f2fe';
+            playlistSelect.style.border = '1px solid rgba(59,130,246,0.3)';
+            playlistSelect.style.fontSize = '13px';
+            playlistSelect.innerHTML = '<option value="">Sélectionner une playlist</option>';
+            // Charger les playlists via API (ou à remplacer par une variable globale si dispo)
+            fetch('/api/playlists')
+                .then(res => res.json())
+                .then(playlists => {
+                    playlists.forEach(pl => {
+                        const opt = document.createElement('option');
+                        opt.value = pl.id;
+                        opt.textContent = pl.name;
+                        playlistSelect.appendChild(opt);
+                    });
+                });
+            playlistSelect.onchange = async function() {
+                if (!playlistSelect.value) return;
+                // Appel API pour ajouter la vidéo à la playlist
+                await fetch(`/api/playlists/${playlistSelect.value}/add-video`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ videoId: video.id })
+                });
+                playlistSelect.value = '';
+                setStatus('Vidéo ajoutée à la playlist');
+            };
+            playlistDiv.appendChild(playlistSelect);
+            container.appendChild(playlistDiv);
 
 
             // --- Creators MULTISELECT ---
@@ -1531,6 +1249,54 @@
             setStatus('Modification enregistrée');
         }
 
+        async function loadPlaylistsDropdowns() {
+            try {
+                const playlists = await fetchJson('/api/playlists');
+                const bulkSelect = document.getElementById('bulkPlaylistSelect');
+                if (bulkSelect) {
+                    bulkSelect.innerHTML = '<option value="">Sélectionner une playlist</option>';
+                    playlists.forEach(pl => {
+                        const opt = document.createElement('option');
+                        opt.value = pl.id;
+                        opt.textContent = pl.name;
+                        bulkSelect.appendChild(opt);
+                    });
+                }
+            } catch {}
+        }
+
+        async function addSelectedVideosToPlaylist() {
+            const select = document.getElementById('bulkPlaylistSelect');
+            const status = document.getElementById('bulkAddStatus');
+            if (!select.value) {
+                status.textContent = 'Choisissez une playlist.';
+                return;
+            }
+            if (selectedVideoIds.size === 0) {
+                status.textContent = 'Sélectionnez des vidéos.';
+                return;
+            }
+            status.textContent = 'Ajout en cours...';
+            try {
+                const res = await fetch(`/api/playlists/${select.value}/add-videos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ videoIds: Array.from(selectedVideoIds) })
+                });
+                if (!res.ok) throw new Error('Erreur API');
+                status.textContent = 'Vidéos ajoutées à la playlist !';
+                select.value = '';
+            } catch {
+                status.textContent = 'Erreur lors de l\'ajout.';
+            }
+        }
+
+        // Ajout au chargement de la page
+        const origOnLoad = window.onload;
+        window.addEventListener('load', async () => {
+            if (typeof origOnLoad === 'function') await origOnLoad();
+            await loadPlaylistsDropdowns();
+        });
     </script>
 </head>
 <body>
@@ -1545,8 +1311,10 @@
             </button>
         </div>
 
+
         <div class="nav-chip-wrap">
             <button class="nav-chip active" onclick="location.href='/'">Bibliothèque</button>
+            <button class="nav-chip" onclick="location.href='/playlists'">Playlists</button>
             <button class="nav-chip" onclick="location.href='/favorites'">Favoris</button>
             <button class="nav-chip" onclick="location.href='/recently'">Récemment vus</button>
             <button class="nav-chip" onclick="location.href='/stats'">Statistiques</button>
@@ -1667,6 +1435,7 @@
         </div>
         <div id="pagination" class="pagination"></div>
         <div id="videos" class="video-grid"></div>
+        <div id="pagination" class="pagination"></div>
     </main>
 <!-- Modal d'ajout vidéo -->
 <div id="addVideoModal" style="display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,32,0.88); align-items:center; justify-content:center;">

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Playlists</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .playlist-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+        }
+        .playlist-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 16px;
+        }
+        .playlist-thumbnails {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 2px;
+            width: 100%;
+            aspect-ratio: 1/1;
+            margin-bottom: 8px;
+        }
+        .playlist-thumbnails img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .playlist-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mes Playlists</h1>
+    <form method="post" action="/playlists/create">
+        <input type="text" name="name" placeholder="Nom de la playlist" required>
+        <button type="submit">Créer une playlist</button>
+    </form>
+    <div class="playlist-grid">
+        <!-- Boucle Thymeleaf pour afficher les playlists -->
+        <div class="playlist-card" th:each="playlist : ${playlists}">
+            <div class="playlist-thumbnails">
+                <img th:each="thumb : ${playlist.thumbnails}" th:src="@{${thumb}}" th:if="${thumb != null}" alt="thumbnail" />
+            </div>
+            <div class="playlist-title" th:text="${playlist.name}"></div>
+            <div th:text="${playlist.videosCount} + ' vidéos'"></div>
+        </div>
+    </div>
+</body>
+</html>
